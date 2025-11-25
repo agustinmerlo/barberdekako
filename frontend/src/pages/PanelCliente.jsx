@@ -6,12 +6,19 @@ import "./PanelCliente.css";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:8000";
 
+// 📞 CONFIGURACIÓN DE CONTACTO
+const CONTACTO_BARBERIA = {
+  telefono: "+5493874000000", // ← CAMBIAR POR TU NÚMERO REAL (con código de país)
+  whatsapp: "5493874000000",  // ← CAMBIAR (sin + ni espacios)
+  mensajeDefault: "Hola, necesito ayuda con mi reserva en Barbería Clase V"
+};
+
 function PanelCliente() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
   const [seccionActiva, setSeccionActiva] = useState("reservas");
-  const [filtroReservas, setFiltroReservas] = useState("proximas"); // proximas | pendientes | pasadas
+  const [filtroReservas, setFiltroReservas] = useState("proximas");
   const [reservas, setReservas] = useState([]);
   const [cargando, setCargando] = useState(true);
 
@@ -101,8 +108,6 @@ function PanelCliente() {
         });
         setReservas(normalizaResultados(data));
       } else if (estadoUI === "pasadas") {
-        // Historial = confirmadas pasadas + rechazadas + canceladas
-        // Si querés, puedo darte un endpoint único en backend (estado=historial)
         const [conf, rej, can] = await Promise.all([
           apiGet("/api/reservas/cliente/", { estado: "confirmada", email }),
           apiGet("/api/reservas/cliente/", { estado: "rechazada", email }),
@@ -123,7 +128,6 @@ function PanelCliente() {
           )
         );
       } else {
-        // fallback
         const data = await apiGet("/api/reservas/cliente/", { email });
         setReservas(normalizaResultados(data));
       }
@@ -200,11 +204,23 @@ function PanelCliente() {
     completadas: contadores.completadas,
   };
 
+  // ====== HANDLERS ======
   const handleVolverInicio = () => navigate("/cliente");
   const handleNuevaReserva = () => navigate("/reservar");
   const handleCerrarSesion = () => {
     logout();
     navigate("/login");
+  };
+
+  // 📞 CONTACTAR POR WHATSAPP
+  const handleContactarWhatsApp = () => {
+    const mensaje = encodeURIComponent(
+      `${CONTACTO_BARBERIA.mensajeDefault}\n\n` +
+      `Cliente: ${user.email}\n` +
+      `Motivo: Consulta general / Cancelación de reserva`
+    );
+    const urlWhatsApp = `https://wa.me/${CONTACTO_BARBERIA.whatsapp}?text=${mensaje}`;
+    window.open(urlWhatsApp, '_blank');
   };
 
   if (!user) return null;
@@ -480,9 +496,35 @@ function PanelCliente() {
                 <button className="btn-editar" onClick={() => alert("Función de edición en desarrollo")}>
                   ✏️ Editar perfil
                 </button>
-                <button className="btn-ayuda" onClick={() => alert("Contacta por WhatsApp")}>
-                  💬 Ayuda
+                <button className="btn-ayuda" onClick={handleContactarWhatsApp}>
+                  💬 Contactar por WhatsApp
                 </button>
+              </div>
+
+              {/* 📞 INFO DE CONTACTO */}
+              <div className="info-contacto">
+                <h4>¿Necesitas ayuda?</h4>
+                <p>Contáctanos para:</p>
+                <ul>
+                  <li>✅ Consultas sobre tu reserva</li>
+                  <li>✅ Cancelar o modificar una cita</li>
+                  <li>✅ Información sobre servicios</li>
+                  <li>✅ Cualquier otra duda</li>
+                </ul>
+                <div className="contacto-directo">
+                  <a 
+                    href={`tel:${CONTACTO_BARBERIA.telefono}`}
+                    className="btn-contacto telefono"
+                  >
+                    📞 Llamar
+                  </a>
+                  <button 
+                    onClick={handleContactarWhatsApp}
+                    className="btn-contacto whatsapp"
+                  >
+                    💬 WhatsApp
+                  </button>
+                </div>
               </div>
             </div>
 

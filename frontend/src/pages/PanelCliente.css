@@ -705,4 +705,92 @@
   .perfil-acciones {
     flex-direction: column;
   }
+  /* ========================================
+   SECCIÓN DE CONTACTO EN PERFIL
+======================================== */
+.info-contacto {
+  margin-top: 30px;
+  padding: 25px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 15px;
+  color: white;
+}
+
+.info-contacto h4 {
+  margin: 0 0 15px 0;
+  font-size: 1.3em;
+  font-weight: 600;
+}
+
+.info-contacto p {
+  margin: 10px 0;
+  opacity: 0.95;
+}
+
+.info-contacto ul {
+  list-style: none;
+  padding: 0;
+  margin: 15px 0 20px 0;
+}
+
+.info-contacto ul li {
+  padding: 8px 0;
+  font-size: 0.95em;
+  opacity: 0.9;
+}
+
+.contacto-directo {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.btn-contacto {
+  flex: 1;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 10px;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-contacto.telefono {
+  background: white;
+  color: #667eea;
+}
+
+.btn-contacto.telefono:hover {
+  background: #f0f0f0;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-contacto.whatsapp {
+  background: #25D366;
+  color: white;
+}
+
+.btn-contacto.whatsapp:hover {
+  background: #1fb855;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .contacto-directo {
+    flex-direction: column;
+  }
+  
+  .btn-contacto {
+    width: 100%;
+  }
+}
 }

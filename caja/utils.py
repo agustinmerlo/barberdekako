@@ -1,6 +1,14 @@
 # caja/utils.py
+from decimal import Decimal
 from rest_framework.exceptions import ValidationError
-from .models import TurnoCaja
+from .models import TurnoCaja, MovimientoCaja
+
+
+def obtener_turno_activo():
+    """
+    Obtiene el turno de caja activo (abierto) más reciente
+    """
+    return TurnoCaja.objects.filter(estado='abierto').order_by('-fecha_apertura').first()
 
 
 def validar_caja_abierta():
@@ -8,81 +16,66 @@ def validar_caja_abierta():
     Valida que exista un turno de caja abierto
     Lanza ValidationError si no hay caja abierta
     """
-    turno_activo = TurnoCaja.objects.filter(estado='abierto').first()
+    turno_activo = obtener_turno_activo()
     
     if not turno_activo:
         raise ValidationError({
-            'error': 'La caja está cerrada',
-            'mensaje': 'Debes abrir la caja antes de registrar pagos o confirmar reservas.',
-            'accion_requerida': 'Ir a Caja → Abrir Turno',
-            'caja_abierta': False
+            'error': 'Caja cerrada',
+            'mensaje': 'No hay ninguna caja abierta en este momento.',
+            'detalle': 'Para realizar operaciones de pago, primero debes abrir la caja.',
+            'sugerencia': 'Ve a "Caja" → "Abrir Caja" para comenzar un nuevo turno.'
         })
     
     return turno_activo
 
 
-def obtener_turno_activo():
+def registrar_pago_en_caja(reserva, monto, metodo_pago, tipo_pago='saldo', usuario=None):
     """
-    Retorna el turno activo o None
-    """
-    return TurnoCaja.objects.filter(estado='abierto').first()
-
-
-def registrar_pago_en_caja(reserva, monto, metodo_pago, tipo_pago='seña', usuario=None):
-    """
-    Registra un pago de reserva en la caja
+    Registra un pago de reserva en la caja actual
     
     Args:
         reserva: Instancia de Reserva
-        monto: Decimal con el monto del pago
-        metodo_pago: str (efectivo, tarjeta, transferencia, mercadopago)
-        tipo_pago: str ('seña' o 'saldo')
-        usuario: User que registra el pago
+        monto: Decimal - Monto del pago
+        metodo_pago: str - Método de pago (efectivo, transferencia, mercadopago, seña)
+        tipo_pago: str - Tipo de pago ('seña' o 'saldo')
+        usuario: Usuario que registra (opcional)
     
     Returns:
-        MovimientoCaja creado
+        MovimientoCaja: El movimiento creado
     """
-    from .models import MovimientoCaja
-    from decimal import Decimal
-    
     # Validar que haya caja abierta
     turno_activo = validar_caja_abierta()
     
-    # Validar monto
-    if isinstance(monto, (int, float)):
+    # Convertir monto a Decimal si no lo es
+    if not isinstance(monto, Decimal):
         monto = Decimal(str(monto))
     
+    # Validar monto
     if monto <= 0:
         raise ValidationError({
             'error': 'Monto inválido',
             'mensaje': 'El monto debe ser mayor a 0'
         })
     
-    # Preparar descripción
-    servicios_nombres = ', '.join([
-        s.get('nombre', '') for s in (reserva.servicios or [])[:3]
-    ]) if reserva.servicios else 'Servicios varios'
-    
-    tipo_pago_texto = 'Seña' if tipo_pago == 'seña' else 'Saldo'
-    
-    descripcion = (
-        f'{tipo_pago_texto} reserva #{reserva.id} - '
-        f'{reserva.nombre_cliente} {reserva.apellido_cliente} - '
-        f'{servicios_nombres}'
-    )
+    # Construir descripción
+    if tipo_pago == 'seña':
+        descripcion = f"Seña de reserva #{reserva.id} - {reserva.nombre_cliente} {reserva.apellido_cliente}"
+    else:
+        descripcion = f"Pago de saldo - Reserva #{reserva.id} - {reserva.nombre_cliente} {reserva.apellido_cliente}"
     
     # Crear movimiento
     movimiento = MovimientoCaja.objects.create(
+        turno=turno_activo,
         tipo='ingreso',
         monto=monto,
         descripcion=descripcion,
         metodo_pago=metodo_pago,
         categoria='servicios',
-        barbero=reserva.barbero,
         reserva=reserva,
-        turno=turno_activo,
-        usuario_registro=usuario,
-        comprobante=reserva.comprobante if tipo_pago == 'seña' else None
+        usuario_registro=usuario,  # ✅ CORREGIDO
+        comprobante=reserva.comprobante if hasattr(reserva, 'comprobante') else None
     )
     
-    return movimiento 
+    print(f"✅ Pago registrado en caja: ${monto} ({metodo_pago}) - Movimiento #{movimiento.id}")
+    
+    return movimiento

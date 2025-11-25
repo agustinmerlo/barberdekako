@@ -6,7 +6,10 @@ import './Register.css';
 import {
     Person24Regular,
     Mail24Regular,
-    LockClosed24Regular
+    LockClosed24Regular,
+    Eye24Regular,
+    EyeOff24Regular,
+    Checkmark24Filled
 } from "@fluentui/react-icons";
 
 function Register() {
@@ -21,10 +24,14 @@ function Register() {
 
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [emailFocused, setEmailFocused] = useState(false);
 
     const [passwordValidations, setPasswordValidations] = useState({
-        hasCaracter: false,
+        hasMinLength: false,
         hasUppercase: false,
+        hasLowercase: false,
         hasNumber: false,
         hasSymbol: false,
     });
@@ -32,34 +39,64 @@ function Register() {
     // VALIDACIÓN DINÁMICA DE CONTRASEÑA
     useEffect(() => {
         setPasswordValidations({
-            hasCaracter: formData.password.length >= 6,
+            hasMinLength: formData.password.length >= 6,
             hasUppercase: /[A-Z]/.test(formData.password),
+            hasLowercase: /[a-z]/.test(formData.password),
             hasNumber: /\d/.test(formData.password),
             hasSymbol: /[!@#$%^&*(),.?":{}|<>]/.test(formData.password),
         });
     }, [formData.password]);
 
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        
+        // Validar solo letras y espacios para username
+        if (name === 'username') {
+            const regex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]*$/;
+            if (!regex.test(value)) return;
+        }
+
+        setFormData({ ...formData, [name]: value });
     };
+
+    // Validar formato de email
+    const isValidEmail = (email) => {
+        return /^[^\s@]+@(gmail|outlook|hotmail|yahoo|icloud)\.com$/i.test(email);
+    };
+
+    const passwordsMatch = formData.password && formData.password2 && formData.password === formData.password2;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError(null);
 
+        // Validar campos vacíos
+        if (!formData.username || !formData.email || !formData.password || !formData.password2) {
+            setError("Todos los campos son obligatorios.");
+            return;
+        }
+
+        // Validar formato de email
+        if (!isValidEmail(formData.email)) {
+            setError('El correo debe tener un formato válido y terminar en ".com" (gmail, outlook, hotmail, yahoo, icloud).');
+            return;
+        }
+
+        // Validar contraseñas coincidan
         if (formData.password !== formData.password2) {
             setError("Las contraseñas no coinciden.");
             return;
         }
 
-        // VALIDAR TODOS LOS REQUISITOS
+        // VALIDAR TODOS LOS REQUISITOS DE CONTRASEÑA
         if (
-            !passwordValidations.hasCaracter ||
+            !passwordValidations.hasMinLength ||
             !passwordValidations.hasUppercase ||
+            !passwordValidations.hasLowercase ||
             !passwordValidations.hasNumber ||
             !passwordValidations.hasSymbol
         ) {
-            setError("La contraseña no cumple todos los requisitos.");
+            setError("La contraseña debe cumplir todos los requisitos de seguridad.");
             return;
         }
 
@@ -74,15 +111,28 @@ function Register() {
             const data = await response.json();
 
             if (!response.ok) {
-                setError(data.error || JSON.stringify(data));
+                // Manejar errores específicos del backend
+                if (data.username) {
+                    setError("El nombre de usuario ya está en uso.");
+                } else if (data.email) {
+                    setError("El correo electrónico ya está registrado.");
+                } else {
+                    setError(data.error || "Error al registrar. Intenta nuevamente.");
+                }
             } else {
-                console.log("Registro exitoso:", data);
+                console.log("✅ Registro exitoso:", data);
                 if (data.token) localStorage.setItem("authToken", data.token);
-                navigate("/"); 
+                
+                // Mostrar mensaje de éxito
+                alert("¡Tu cuenta ha sido creada correctamente! Redirigiendo al inicio de sesión...");
+                
+                setTimeout(() => {
+                    navigate("/");
+                }, 1500);
             }
         } catch (err) {
-            console.error(err);
-            setError("Error de registro. Intenta más tarde.");
+            console.error("❌ Error de registro:", err);
+            setError("Error de conexión. Verifica tu internet e intenta más tarde.");
         } finally {
             setLoading(false);
         }
@@ -107,7 +157,7 @@ function Register() {
                         <input
                             type="text"
                             name="username"
-                            placeholder="Nombre de usuario"
+                            placeholder="Nombre de usuario (solo letras)"
                             value={formData.username}
                             onChange={handleChange}
                             required
@@ -123,56 +173,163 @@ function Register() {
                             placeholder="Correo electrónico"
                             value={formData.email}
                             onChange={handleChange}
+                            onFocus={() => setEmailFocused(true)}
+                            onBlur={() => setEmailFocused(false)}
                             required
                         />
                     </div>
+                    {emailFocused && !isValidEmail(formData.email) && formData.email && (
+                        <p style={{ color: '#888', fontSize: '0.85em', marginTop: '-10px', fontStyle: 'italic' }}>
+                            Ejemplo: usuario@gmail.com
+                        </p>
+                    )}
 
                     {/* Contraseña */}
                     <div className="input-group">
                         <LockClosed24Regular className="input-icon" />
                         <input
-                            type="password"
+                            type={showPassword ? "text" : "password"}
                             name="password"
                             placeholder="Contraseña"
                             value={formData.password}
                             onChange={handleChange}
                             required
                         />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: '0 10px',
+                                color: '#FFD700'
+                            }}
+                        >
+                            {showPassword ? <EyeOff24Regular /> : <Eye24Regular />}
+                        </button>
                     </div>
 
                     {/* Confirmar contraseña */}
                     <div className="input-group">
                         <LockClosed24Regular className="input-icon" />
                         <input
-                            type="password"
+                            type={showConfirmPassword ? "text" : "password"}
                             name="password2"
                             placeholder="Confirma contraseña"
                             value={formData.password2}
                             onChange={handleChange}
                             required
                         />
+                        <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: '0 10px',
+                                color: '#FFD700'
+                            }}
+                        >
+                            {showConfirmPassword ? <EyeOff24Regular /> : <Eye24Regular />}
+                        </button>
                     </div>
+
+                    {/* Indicador de coincidencia de contraseñas */}
+                    {formData.password2.length > 0 && (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            marginTop: '-5px',
+                            marginBottom: '10px'
+                        }}>
+                            {passwordsMatch ? (
+                                <>
+                                    <Checkmark24Filled style={{ color: 'limegreen' }} />
+                                    <span style={{ color: 'limegreen', fontSize: '0.9em', fontWeight: 'bold' }}>
+                                        Las contraseñas coinciden
+                                    </span>
+                                </>
+                            ) : (
+                                <span style={{ color: '#ff4d4d', fontSize: '0.9em' }}>
+                                    ❌ Las contraseñas no coinciden
+                                </span>
+                            )}
+                        </div>
+                    )}
 
                     {/* Error */}
                     {error && (
-                        <p style={{ color: 'red', fontSize: '0.9em', marginTop: '10px' }}>
-                            {error}
-                        </p>
+                        <div style={{
+                            backgroundColor: 'rgba(255, 77, 77, 0.1)',
+                            border: '1px solid #ff4d4d',
+                            borderRadius: '8px',
+                            padding: '12px',
+                            marginTop: '10px',
+                            marginBottom: '10px'
+                        }}>
+                            <p style={{ color: '#ff4d4d', fontSize: '0.9em', margin: 0 }}>
+                                ⚠️ {error}
+                            </p>
+                        </div>
                     )}
 
-                    {/* Validaciones */}
-                    <div className="password-requirements" style={{ textAlign: 'left', marginTop: '10px' }}>
-                        <p style={{ color: passwordValidations.hasCaracter ? 'limegreen' : 'white' }}>
-                            • Contiene al menos 6 caracteres
+                    {/* Validaciones de contraseña */}
+                    <div className="password-requirements" style={{ textAlign: 'left', marginTop: '15px', marginBottom: '15px' }}>
+                        <p style={{ color: '#fff', fontWeight: 'bold', marginBottom: '8px' }}>
+                            Requisitos de contraseña:
                         </p>
-                        <p style={{ color: passwordValidations.hasUppercase ? 'limegreen' : 'white' }}>
-                            • Contiene al menos una letra mayúscula
+                        <p style={{
+                            color: passwordValidations.hasMinLength ? 'limegreen' : '#888',
+                            fontSize: '0.9em',
+                            margin: '5px 0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                        }}>
+                            {passwordValidations.hasMinLength ? '✓' : '○'} Al menos 6 caracteres
                         </p>
-                        <p style={{ color: passwordValidations.hasNumber ? 'limegreen' : 'white' }}>
-                            • Contiene al menos un número
+                        <p style={{
+                            color: passwordValidations.hasUppercase ? 'limegreen' : '#888',
+                            fontSize: '0.9em',
+                            margin: '5px 0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                        }}>
+                            {passwordValidations.hasUppercase ? '✓' : '○'} Una letra mayúscula
                         </p>
-                        <p style={{ color: passwordValidations.hasSymbol ? 'limegreen' : 'white' }}>
-                            • Contiene al menos un símbolo (!@#$...)
+                        <p style={{
+                            color: passwordValidations.hasLowercase ? 'limegreen' : '#888',
+                            fontSize: '0.9em',
+                            margin: '5px 0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                        }}>
+                            {passwordValidations.hasLowercase ? '✓' : '○'} Una letra minúscula
+                        </p>
+                        <p style={{
+                            color: passwordValidations.hasNumber ? 'limegreen' : '#888',
+                            fontSize: '0.9em',
+                            margin: '5px 0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                        }}>
+                            {passwordValidations.hasNumber ? '✓' : '○'} Un número
+                        </p>
+                        <p style={{
+                            color: passwordValidations.hasSymbol ? 'limegreen' : '#888',
+                            fontSize: '0.9em',
+                            margin: '5px 0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                        }}>
+                            {passwordValidations.hasSymbol ? '✓' : '○'} Un símbolo (!@#$%^&*...)
                         </p>
                     </div>
 

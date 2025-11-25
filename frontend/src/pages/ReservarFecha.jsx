@@ -136,7 +136,7 @@ export default function ReservarFecha({
         else navigate("/reservar", { replace: true });
       }
     }
-  }, [servicios.length, cargandoServicios]);
+  }, [servicios.length, cargandoServicios, navigate, onVolver]);
 
   // -----------------------------
   // Cargar BARBEROS desde API
@@ -193,7 +193,7 @@ export default function ReservarFecha({
   }, [API_BASE]);
 
   // -----------------------------
-  // ✅ CARGAR HORARIOS CON NUEVA LÓGICA
+  // ✅ CARGAR HORARIOS CON MEJOR MANEJO
   // -----------------------------
   useEffect(() => {
     if (!fechaSeleccionada || !barberoSeleccionado) {
@@ -237,7 +237,10 @@ export default function ReservarFecha({
           setHorariosDisponibles([]);
         } else {
           console.log(`✅ ${slots.length} horarios recibidos`);
-          setHorariosDisponibles(slots);
+          // Ordenar: disponibles primero, ocupados después
+          const disponibles = slots.filter(s => s.disponible);
+          const ocupados = slots.filter(s => !s.disponible);
+          setHorariosDisponibles([...disponibles, ...ocupados]);
         }
       })
       .catch((error) => {
@@ -245,21 +248,9 @@ export default function ReservarFecha({
         
         console.error(`❌ Error cargando horarios:`, error);
         
-        console.log("⚠️ Generando horarios de fallback...");
-        
-        const horariosFallback = [
-          { hora: "09:00", disponible: true },
-          { hora: "10:00", disponible: true },
-          { hora: "11:00", disponible: true },
-          { hora: "12:00", disponible: true },
-          { hora: "17:00", disponible: true },
-          { hora: "18:00", disponible: true },
-          { hora: "19:00", disponible: true },
-          { hora: "20:00", disponible: true },
-          { hora: "21:00", disponible: true },
-        ];
-        
-        setHorariosDisponibles(horariosFallback);
+        // ⚠️ En caso de error, mostrar mensaje claro
+        alert(`No se pudieron cargar los horarios disponibles.\n\nPor favor intenta nuevamente o selecciona otra fecha.`);
+        setHorariosDisponibles([]);
       })
       .finally(() => {
         if (!cancel) setCargandoHorarios(false);

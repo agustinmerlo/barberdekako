@@ -1,0 +1,36 @@
+/* ==========================================
+   BOTÓN ELIMINAR RESERVA
+   ========================================== */
+.agenda-right .btn-eliminar-reserva {
+  margin-top: 0.75rem;
+  padding: 0.6rem 1.2rem !important;
+  background: #ff5252 !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  transition: all 0.2s ease !important;
+}
+
+.agenda-right .btn-eliminar-reserva:hover:not(:disabled) {
+  background: #ff1744 !important;
+  transform: scale(1.02) !important;
+}
+
+.agenda-right .btn-eliminar-reserva:active:not(:disabled) {
+  transform: scale(0.98) !important;
+}
+
+.agenda-right .btn-eliminar-reserva:disabled {
+  background: #999 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  opacity: 0.6 !important;
+}

@@ -735,3 +735,97 @@ def listar_reservas(request):
     qs = qs.order_by('-fecha_creacion')
     serializer = ReservaSerializer(qs, many=True)
     return Response(serializer.data, status=200)
+# Agregar esta función al final de reservas/views.py (antes del último comentario)
+# ==========================================
+# ELIMINAR RESERVA (SIN REVERTIR SEÑA)
+# ==========================================
+@api_view(['DELETE'])
+@permission_classes([AllowAny])
+def eliminar_reserva(request, reserva_id):
+    """
+    DELETE /api/reservas/<id>/eliminar/
+    Elimina una reserva (solo confirmadas y completadas)
+    
+    ⚠️ IMPORTANTE: La seña NO se revierte en caja, solo se elimina la reserva
+    """
+    try:
+        reserva = Reserva.objects.get(id=reserva_id)
+        
+        # Validar que sea confirmada o completada
+        if reserva.estado not in ['confirmada', 'completada']:
+            return Response({
+                'error': 'Operación no permitida',
+                'mensaje': f'Solo se pueden eliminar reservas confirmadas o completadas. Estado actual: {reserva.estado}',
+                'estado_actual': reserva.estado
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Guardar información para el log y respuesta
+        info_reserva = {
+            'id': reserva.id,
+            'cliente': f"{reserva.nombre_cliente} {reserva.apellido_cliente}",
+            'fecha': str(reserva.fecha),
+            'horario': str(reserva.horario),
+            'barbero': reserva.barbero_nombre,
+            'total': float(reserva.total),
+            'seña': float(reserva.seña) if reserva.seña else 0,
+            'estado': reserva.estado
+        }
+        
+        # 📧 Enviar email de notificación al cliente
+        mensaje_cliente = f'''Hola {reserva.nombre_cliente},
+
+Te informamos que tu reserva ha sido ELIMINADA del sistema.
+
+DETALLES DE LA RESERVA ELIMINADA:
+- Fecha: {reserva.fecha.strftime("%d/%m/%Y")}
+- Hora: {reserva.horario.strftime("%H:%M")}
+- Barbero: {reserva.barbero_nombre}
+- Total: ${reserva.total}
+
+IMPORTANTE: La seña pagada permanece registrada en nuestro sistema contable.
+Si necesitas un reembolso, por favor contactanos.
+
+Si esto es un error, contactanos inmediatamente.
+
+Barberia Clase V
+Teléfono: [TU TELEFONO]
+Email: [TU EMAIL]'''
+
+        try:
+            enviar_email_utf8(
+                'Reserva Eliminada - Barberia Clase V',
+                mensaje_cliente,
+                reserva.email_cliente
+            )
+            print(f"📧 Email de notificación enviado a: {reserva.email_cliente}")
+        except Exception as e:
+            print(f"⚠️ No se pudo enviar email de notificación: {e}")
+        
+        # 🗑️ ELIMINAR LA RESERVA
+        # Nota: Los movimientos en caja quedan vinculados al turno pero sin reserva
+        # Esto mantiene la integridad contable
+        reserva.delete()
+        
+        print(f"✅ Reserva #{info_reserva['id']} eliminada exitosamente")
+        print(f"💰 Seña de ${info_reserva['seña']} permanece registrada en caja")
+        
+        return Response({
+            'success': True,
+            'mensaje': 'Reserva eliminada exitosamente. La seña permanece registrada en caja.',
+            'reserva_eliminada': info_reserva,
+            'nota': 'Los movimientos de caja asociados se mantienen para preservar la integridad contable.'
+        }, status=status.HTTP_200_OK)
+        
+    except Reserva.DoesNotExist:
+        return Response({
+            'error': 'Reserva no encontrada',
+            'mensaje': f'No existe una reserva con el ID {reserva_id}'
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"❌ Error inesperado al eliminar reserva: {e}")
+        import traceback
+        traceback.print_exc()
+        return Response({
+            'error': 'Error del servidor',
+            'mensaje': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

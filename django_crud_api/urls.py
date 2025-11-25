@@ -9,19 +9,6 @@ from rest_framework.routers import DefaultRouter
 from barbers.views import BarberViewSet
 from servicios.views import ServicioViewSet
 from proveedores.views import ProveedorViewSet
-from caja.views import MovimientoCajaViewSet
-
-# FBVs de reservas
-from reservas.views import (
-    crear_reserva,
-    listar_reservas,
-    actualizar_reserva,
-    confirmar_reserva,
-    rechazar_reserva,
-    horarios_disponibles,
-    listar_reservas_cliente,
-    reservas_cliente_contadores,
-)
 
 # Router único para todos los ViewSets
 router = DefaultRouter()
@@ -34,22 +21,7 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('api/usuarios/', include('usuarios.urls')),
     path('api/caja/', include('caja.urls')),
-    
-    # RESERVAS
-    path('api/reservas/crear/', crear_reserva, name='reservas-crear'),
-    path('api/reservas/', listar_reservas, name='reservas-listar'),
-    path('api/reservas/<int:reserva_id>/', actualizar_reserva, name='reservas-detalle'),
-    path('api/reservas/<int:reserva_id>/confirmar/', confirmar_reserva, name='reservas-confirmar'),
-    path('api/reservas/<int:reserva_id>/rechazar/', rechazar_reserva, name='reservas-rechazar'),
-    
-    # Cliente
-    path('api/reservas/cliente/', listar_reservas_cliente, name='reservas-cliente'),
-    path('api/reservas/cliente/contadores/', reservas_cliente_contadores, name='reservas-cliente-contadores'),
-    
-    # HORARIOS
-    path('api/horarios/', horarios_disponibles, name='horarios'),
-    path('api/reservas/horarios/', horarios_disponibles, name='reservas-horarios'),
-    path('api/horarios-disponibles/', horarios_disponibles, name='horarios-disponibles'),
+    path('api/', include('reservas.urls')),  # ✅ Incluye TODAS las rutas de reservas
 ]
 
 # Servir archivos media en desarrollo

@@ -18,4 +18,5 @@ urlpatterns = [
     path('reservas/<int:reserva_id>/confirmar/', views.confirmar_reserva, name='confirmar-reserva'),
     path('reservas/<int:reserva_id>/rechazar/', views.rechazar_reserva, name='rechazar-reserva'),
     path('reservas/<int:reserva_id>/pagar_saldo/', views.pagar_saldo, name='pagar-saldo'),
-] 
+    path('reservas/<int:reserva_id>/eliminar/', views.eliminar_reserva, name='eliminar-reserva'),  # ✅ NUEVO
+]

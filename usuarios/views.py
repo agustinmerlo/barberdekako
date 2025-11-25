@@ -311,9 +311,8 @@ def me(request):
         "is_staff": u.is_staff,
     }, status=status.HTTP_200_OK)
 
-
 # -------------------------------------------------------------------
-# 6️⃣ SOLICITAR RECUPERACIÓN DE CONTRASEÑA
+# 6️⃣ SOLICITAR RECUPERACIÓN DE CONTRASEÑA (VERSIÓN MEJORADA)
 # -------------------------------------------------------------------
 @api_view(['POST'])
 def password_reset_request(request):
@@ -321,9 +320,10 @@ def password_reset_request(request):
     POST /api/usuarios/password-reset/
     Body: { "email": "usuario@example.com" }
     
-    Envía un correo con el enlace de recuperación.
+    ✅ Verifica si el email existe antes de enviar el correo.
+    ❌ Si no existe, retorna error 404.
     """
-    email = request.data.get('email', '').strip()
+    email = request.data.get('email', '').strip().lower()
     
     if not email:
         return Response(
@@ -331,13 +331,13 @@ def password_reset_request(request):
             status=status.HTTP_400_BAD_REQUEST
         )
     
+    # ✅ VERIFICAR SI EL USUARIO EXISTE
     try:
         user = User.objects.get(email=email)
     except User.DoesNotExist:
-        # Por seguridad, no revelar si el email existe o no
         return Response(
-            {"message": "Si el correo existe, recibirás un enlace de recuperación"},
-            status=status.HTTP_200_OK
+            {"error": "No existe una cuenta asociada a este correo electrónico"},
+            status=status.HTTP_404_NOT_FOUND
         )
     
     # Generar token único
@@ -382,8 +382,6 @@ Equipo de Barber Studio
             {"error": "Error al enviar el correo. Inténtalo más tarde."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-
-
 # -------------------------------------------------------------------
 # 7️⃣ CONFIRMAR NUEVA CONTRASEÑA
 # -------------------------------------------------------------------
