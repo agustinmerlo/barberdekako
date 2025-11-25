@@ -17,7 +17,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # -------------------------------------------------------------------
 SECRET_KEY = 'django-insecure-8npq1vwes7$#las5pabldu$bcqvzr)os7%x)km^)_j8j7vmc+p'
 DEBUG = True
-ALLOWED_HOSTS = []  # Agrega dominios/IPS si desplegás
+ALLOWED_HOSTS = []
 
 # -------------------------------------------------------------------
 # Aplicaciones instaladas
@@ -31,9 +31,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # Terceros
-    'corsheaders',                  # Necesario para la comunicación con React
+    'corsheaders',
     'rest_framework',
-    'rest_framework.authtoken',     # Para la autenticación basada en tokens
+    'rest_framework.authtoken',
 
     # Apps locales
     'tasks',
@@ -50,10 +50,7 @@ INSTALLED_APPS = [
 # -------------------------------------------------------------------
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-
-    # ¡CORS lo más alto posible!
     'corsheaders.middleware.CorsMiddleware',
-
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -90,9 +87,9 @@ WSGI_APPLICATION = 'django_crud_api.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'barber_clase_v',
+        'NAME': 'barber2',
         'USER': 'root',
-        'PASSWORD': 'Fabri_87',
+        'PASSWORD': '1agustin7',
         'HOST': 'localhost',
         'PORT': '3306',
     }
@@ -120,10 +117,10 @@ USE_TZ = True
 # Archivos estáticos
 # -------------------------------------------------------------------
 STATIC_URL = 'static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # Para producción
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # -------------------------------------------------------------------
-# Archivos de media (ej. comprobantes, fotos de servicios)
+# Archivos de media
 # -------------------------------------------------------------------
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -134,36 +131,38 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # -------------------------------------------------------------------
-# CORS (para que React pueda consumir la API)
+# CORS
 # -------------------------------------------------------------------
 CORS_ALLOW_ALL_ORIGINS = True
-# Si necesitás cookies/credenciales:
-# CORS_ALLOW_CREDENTIALS = True
-# CORS_ALLOWED_ORIGINS = ['http://localhost:3000']  # en vez de ALL si querés limitar
 
 # -------------------------------------------------------------------
 # Django REST Framework
 # -------------------------------------------------------------------
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',  # Autenticación principal
+        'rest_framework.authentication.TokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
 }
 
 # -------------------------------------------------------------------
-# Email (SMTP) para notificaciones/confirmaciones
+# ✅ URL DEL FRONTEND
+# -------------------------------------------------------------------
+FRONTEND_URL = 'http://localhost:3000'
+
+# -------------------------------------------------------------------
+# ✅ CONFIGURACIÓN DE EMAIL - GMAIL CON TU CONTRASEÑA
 # -------------------------------------------------------------------
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'      # o tu servidor SMTP
+EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'tu_email@gmail.com'                 # 👈 cambiar
-EMAIL_HOST_PASSWORD = 'tu_contraseña_de_aplicacion'    # 👈 cambiar
-DEFAULT_FROM_EMAIL = 'Barbería Clase V <noreply@clasev.com>'
 
-# En desarrollo, si querés ver correos en consola:
-# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-# Asegurar UTF-8 en emails
+# 👇 CONFIGURA AQUÍ TU CORREO DE GMAIL
+EMAIL_HOST_USER = 'barberclasev@gmail.com'  # ← CAMBIA ESTO por tu correo real
+EMAIL_HOST_PASSWORD = 'mlfv gxkz lfnw chlz'  # ← Tu contraseña de aplicación
+DEFAULT_FROM_EMAIL = 'Barber Studio <barberclasev@gmail.com>'  # ← CAMBIA ESTO
+
+# Configuración general de email
 DEFAULT_CHARSET = 'utf-8'
 FILE_CHARSET = 'utf-8'

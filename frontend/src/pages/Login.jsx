@@ -101,7 +101,6 @@ function Login() {
       } else if (role === 'barbero') {
         navigate('/barbero/home');
       } else {
-        // ✅ CAMBIO: Los clientes van a la página principal, no al panel
         navigate('/cliente');
       }
     } catch (apiError) {
@@ -162,9 +161,24 @@ function Login() {
           </button>
         </form>
 
-        <p className="register-link-container">
-          ¿No tienes una cuenta? <Link to="/register">Regístrate</Link>
-        </p>
+        <div style={{ textAlign: 'center', marginTop: '15px' }}>
+          <Link 
+            to="/forgot-password" 
+            style={{ 
+              color: '#8B4513', 
+              textDecoration: 'none',
+              fontSize: '0.9em',
+              display: 'block',
+              marginBottom: '10px'
+            }}
+          >
+            ¿Olvidaste tu contraseña?
+          </Link>
+          
+          <p className="register-link-container" style={{ marginTop: '10px' }}>
+            ¿No tienes una cuenta? <Link to="/register">Regístrate</Link>
+          </p>
+        </div>
       </div>
     </div>
   );

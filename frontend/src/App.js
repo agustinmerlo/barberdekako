@@ -12,6 +12,8 @@ import Reservar from './pages/Reservar';
 import ReservarFecha from './pages/ReservarFecha';
 import ReservarConfirmacion from './pages/ReservarConfirmacion';
 import PagoTransferencia from './pages/PagoTransferencia';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 // ===== PANEL CLIENTE REAL =====
 import PanelCliente from './pages/PanelCliente';
@@ -65,6 +67,8 @@ function App() {
           <Route path="/reservar/fecha" element={<ReservarFecha />} />
           <Route path="/reservar/confirmacion" element={<ReservarConfirmacion />} />
           <Route path="/reservar/pago" element={<PagoTransferencia />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           
           {/* ===== PANEL CLIENTE (PROTEGIDO) ===== */}
           <Route

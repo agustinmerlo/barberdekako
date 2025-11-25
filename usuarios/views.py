@@ -228,3 +228,170 @@ def me(request):
         "is_superuser": u.is_superuser,
         "is_staff": u.is_staff,
     }, status=status.HTTP_200_OK)
+
+# ✅ AGREGAR AL FINAL DE usuarios/views.py
+
+from django.core.mail import send_mail
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.conf import settings
+
+
+# -------------------------------------------------------------------
+# 6️⃣ SOLICITAR RECUPERACIÓN DE CONTRASEÑA
+# -------------------------------------------------------------------
+@api_view(['POST'])
+def password_reset_request(request):
+    """
+    POST /api/usuarios/password-reset/
+    Body: { "email": "usuario@example.com" }
+    
+    Envía un correo con el enlace de recuperación.
+    """
+    email = request.data.get('email', '').strip()
+    
+    if not email:
+        return Response(
+            {"error": "El correo electrónico es requerido"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        # Por seguridad, no revelar si el email existe o no
+        return Response(
+            {"message": "Si el correo existe, recibirás un enlace de recuperación"},
+            status=status.HTTP_200_OK
+        )
+    
+    # Generar token único
+    token = default_token_generator.make_token(user)
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    
+    # Crear enlace de reseteo (combinamos uid y token en uno solo)
+    reset_token = f"{uid}-{token}"
+    reset_link = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
+    
+    # Enviar correo
+    try:
+        send_mail(
+            subject='Recuperación de contraseña - Barber Studio',
+            message=f"""
+Hola {user.username},
+
+Recibimos una solicitud para restablecer tu contraseña.
+
+Haz clic en el siguiente enlace para crear una nueva contraseña:
+{reset_link}
+
+Este enlace expirará en 24 horas.
+
+Si no solicitaste este cambio, ignora este correo.
+
+Saludos,
+Equipo de Barber Studio
+            """,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False,
+        )
+        
+        return Response(
+            {"message": "Correo de recuperación enviado exitosamente"},
+            status=status.HTTP_200_OK
+        )
+    except Exception as e:
+        print(f"❌ Error al enviar correo: {str(e)}")
+        return Response(
+            {"error": "Error al enviar el correo. Inténtalo más tarde."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+# -------------------------------------------------------------------
+# 7️⃣ CONFIRMAR NUEVA CONTRASEÑA
+# -------------------------------------------------------------------
+@api_view(['POST'])
+def password_reset_confirm(request):
+    """
+    POST /api/usuarios/password-reset-confirm/
+    Body: { 
+        "token": "uid-token",
+        "password": "nuevaContraseña123"
+    }
+    
+    Valida el token y actualiza la contraseña.
+    """
+    token_combined = request.data.get('token', '').strip()
+    new_password = request.data.get('password', '').strip()
+    
+    if not token_combined or not new_password:
+        return Response(
+            {"error": "Token y contraseña son requeridos"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Validar longitud de contraseña
+    if len(new_password) < 8:
+        return Response(
+            {"error": "La contraseña debe tener al menos 8 caracteres"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Separar uid y token
+    try:
+        uid, token = token_combined.split('-', 1)
+    except ValueError:
+        return Response(
+            {"error": "Token inválido"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Decodificar uid
+    try:
+        user_id = force_str(urlsafe_base64_decode(uid))
+        user = User.objects.get(pk=user_id)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        return Response(
+            {"error": "Token inválido o expirado"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Verificar token
+    if not default_token_generator.check_token(user, token):
+        return Response(
+            {"error": "Token inválido o expirado"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Actualizar contraseña
+    user.set_password(new_password)
+    user.save()
+    
+    # Opcional: enviar correo de confirmación
+    try:
+        send_mail(
+            subject='Contraseña actualizada - Barber Studio',
+            message=f"""
+Hola {user.username},
+
+Tu contraseña ha sido actualizada exitosamente.
+
+Si no realizaste este cambio, contacta con soporte inmediatamente.
+
+Saludos,
+Equipo de Barber Studio
+            """,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=True,
+        )
+    except:
+        pass  # No fallar si el correo de confirmación falla
+    
+    return Response(
+        {"message": "Contraseña restablecida exitosamente"},
+        status=status.HTTP_200_OK
+    )
