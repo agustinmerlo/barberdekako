@@ -1,6 +1,6 @@
 // src/pages/Empleados.jsx
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import "./Empleados.css";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:8000";
@@ -39,7 +39,6 @@ export default function Empleados() {
     };
   };
 
-  // Cargar los usuarios solo con los roles de admin y barbero
   const cargarUsuarios = async () => {
     setCargando(true);
     setError("");
@@ -58,20 +57,10 @@ export default function Empleados() {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       
       const data = await response.json();
-
-      // Verificar la respuesta y asegurarse de que los roles admin y barbero están presentes
-      console.log("Datos recibidos:", data);
-      console.log("Primer usuario completo:", data[0]); // Ver estructura completa
-
-      // Manejar tanto arrays directos como respuestas paginadas
       const usuariosData = Array.isArray(data) ? data : (data?.results ?? []);
-      
-      // Filtrar solo usuarios con rol 'admin' o 'barbero'
       const usuariosFiltrados = usuariosData.filter(u => 
         u.role === 'admin' || u.role === 'barbero'
       );
-      
-      console.log("Usuarios filtrados (admin y barbero):", usuariosFiltrados);
       
       setUsuarios(usuariosFiltrados);
     } catch (err) {
@@ -87,7 +76,6 @@ export default function Empleados() {
   }, []);
 
   const cambiarRol = async (userId, nuevoRol, rolActual) => {
-    // ⛔ Bloquear: Cliente → Barbero
     if (rolActual === 'cliente' && nuevoRol === 'barbero') {
       alert(
         '❌ No puedes convertir clientes en barberos desde aquí.\n\n' +
@@ -101,7 +89,6 @@ export default function Empleados() {
       return;
     }
 
-    // ⚠️ Advertir: Barbero → Cliente (degradar)
     if (rolActual === 'barbero' && nuevoRol === 'cliente') {
       const confirmado = window.confirm(
         '⚠️ Vas a DEGRADAR un Barbero a Cliente\n\n' +
@@ -116,7 +103,6 @@ export default function Empleados() {
       if (!confirmado) return;
     }
 
-    // ⚠️ Advertir: Cambios relacionados con Admin
     if (rolActual === 'admin' && nuevoRol !== 'admin') {
       const confirmado = window.confirm(
         '⚠️ Vas a QUITAR privilegios de Administrador\n\n' +
@@ -143,11 +129,6 @@ export default function Empleados() {
       if (!confirmado) return;
     }
 
-    // ✅ Confirmar cambio normal (si no es ninguno de los casos anteriores)
-    if (rolActual !== 'barbero' && rolActual !== 'admin' && nuevoRol !== 'admin') {
-      if (!window.confirm(`¿Cambiar rol a ${nuevoRol}?`)) return;
-    }
-
     setProcesando(userId);
     setError("");
 
@@ -168,7 +149,6 @@ export default function Empleados() {
 
       await cargarUsuarios();
       
-      // Mensaje de éxito contextual
       if (rolActual === 'barbero' && nuevoRol === 'cliente') {
         alert('✅ Barbero degradado a Cliente\n\n💡 Su perfil de barbero sigue existiendo pero inactivo.');
       } else if (nuevoRol === 'admin') {
@@ -212,7 +192,6 @@ export default function Empleados() {
     }
   };
 
-  // CAMBIO AQUÍ: Removemos el filtro de rol porque ya viene filtrado del backend
   const usuariosFiltrados = usuarios.filter(u => 
     u.username?.toLowerCase().includes(busqueda.toLowerCase()) ||
     u.email?.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -224,9 +203,7 @@ export default function Empleados() {
 
   return (
     <div className="empleados-page">
-      {/* HEADER */}
       <div className="empleados-header">
-        <Link to="/home" className="back-btn">← Inicio</Link>
         <h1>👥 Gestión de Empleados</h1>
         <input
           className="input search"
@@ -238,7 +215,6 @@ export default function Empleados() {
 
       {error && <div className="alert">{error}</div>}
 
-      {/* ESTADÍSTICAS */}
       <div className="stats-cards">
         <div className="stat-card">
           <div className="stat-icon">👑</div>
@@ -263,7 +239,6 @@ export default function Empleados() {
         </div>
       </div>
 
-      {/* TABLA DE USUARIOS */}
       {cargando ? (
         <div className="loading">Cargando usuarios...</div>
       ) : usuariosFiltrados.length === 0 ? (
@@ -324,14 +299,12 @@ export default function Empleados() {
                   </td>
                   <td>
                     <div className="actions-cell">
-                      {/* ✅ SELECTOR CON OPCIONES RESTRINGIDAS SEGÚN ROL */}
                       <select
                         className="role-select"
                         value={usuario.role}
                         onChange={(e) => cambiarRol(usuario.id, e.target.value, usuario.role)}
                         disabled={procesando === usuario.id}  
                       >
-                        {/* CLIENTE: Solo puede ser Cliente o Admin (NO Barbero) */}
                         {usuario.role === 'cliente' && (
                           <>
                             <option value="cliente">👤 Cliente</option>
@@ -339,7 +312,6 @@ export default function Empleados() {
                           </>
                         )}
                         
-                        {/* BARBERO: Puede degradarse a Cliente o ascender a Admin */}
                         {usuario.role === 'barbero' && (
                           <>
                             <option value="barbero">✂️ Barbero</option>
@@ -348,7 +320,6 @@ export default function Empleados() {
                           </>
                         )}
                         
-                        {/* ADMIN: Puede cambiar a Barbero o Cliente */}
                         {usuario.role === 'admin' && (
                           <>
                             <option value="admin">👑 Administrador</option>

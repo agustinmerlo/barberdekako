@@ -1,6 +1,5 @@
-// src/pages/Serviciosadmin.jsx
+// src/pages/Servicios.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import "./Serviciosadmin.css";
 
 // API base (Django)
@@ -85,7 +84,7 @@ const TrashIcon = () => (
 );
 
 // ------------- Componente -------------
-const Services = () => {
+const Servicios = () => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -219,8 +218,7 @@ const Services = () => {
     <div className="services-page">
       <div className="services-header">
         <div className="left">
-          <Link to="/home" className="back-btn">← Inicio</Link>
-          <h1>Servicios</h1>
+          <h1>🧴 Servicios</h1>
         </div>
 
         <div className="services-actions">
@@ -419,4 +417,4 @@ const Services = () => {
   );
 };
 
-export default Services;
+export default Servicios;

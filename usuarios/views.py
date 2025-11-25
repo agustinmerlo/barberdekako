@@ -3,6 +3,12 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
+from django.utils import timezone
+from django.core.mail import send_mail
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.conf import settings
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -11,6 +17,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.decorators import action, api_view, permission_classes
 
+from .models import UserProfile, LoginAttempt  # ✅ Importar LoginAttempt
 from .serializers import (
     UserRegisterSerializer,
     UserSerializer,
@@ -47,41 +54,116 @@ class RegisterView(APIView):
 
 
 # -------------------------------------------------------------------
-# 2️⃣ LOGIN POR EMAIL (devuelve ROL EFECTIVO)
+# 2️⃣ LOGIN POR EMAIL CON SISTEMA DE BLOQUEO POR INTENTOS FALLIDOS
 # -------------------------------------------------------------------
 class EmailLoginView(APIView):
     """
-    Login usando email + password. Devuelve rol EFECTIVO:
+    Login usando email + password con sistema de bloqueo progresivo:
+    - 3 intentos fallidos: bloqueo de 5 minutos
+    - 4 intentos fallidos: bloqueo de 10 minutos
+    - 5 intentos fallidos: bloqueo de 20 minutos
+    - Y así sucesivamente con crecimiento exponencial
+    
+    Devuelve rol EFECTIVO:
     - superuser/staff => 'admin'
     - si no, role de profile (o 'cliente' si no existe)
     """
     def post(self, request):
-        email = request.data.get("email")
-        password = request.data.get("password")
+        email = request.data.get("email", "").lower().strip()
+        password = request.data.get("password", "")
 
         if not email or not password:
             return Response(
-                {"error": "Email y password son requeridos"},
+                {"error": "Email y contraseña son requeridos"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # 1️⃣ VERIFICAR SI EL EMAIL ESTÁ BLOQUEADO
+        login_attempt, created = LoginAttempt.objects.get_or_create(email=email)
+        
+        if login_attempt.is_blocked():
+            remaining_time = login_attempt.get_remaining_block_time()
+            remaining_formatted = login_attempt.get_remaining_block_time_formatted()
+            
+            return Response({
+                'error': 'Cuenta temporalmente bloqueada',
+                'message': f'Has excedido el número de intentos permitidos. Intenta nuevamente en {remaining_formatted}.',
+                'blocked': True,
+                'blocked_until': login_attempt.blocked_until.isoformat(),
+                'remaining_seconds': remaining_time,
+                'failed_attempts': login_attempt.failed_attempts
+            }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+        # 2️⃣ BUSCAR USUARIO POR EMAIL
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            return Response(
-                {"error": "Usuario no encontrado"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            # No revelar si el usuario existe o no (seguridad)
+            login_attempt.increment_failed_attempt()
+            
+            attempts_left = max(0, 3 - login_attempt.failed_attempts)
+            
+            response_data = {
+                'error': 'Credenciales inválidas',
+                'failed_attempts': login_attempt.failed_attempts,
+                'remaining_attempts': attempts_left
+            }
+            
+            # Si se bloqueó en este intento
+            if login_attempt.is_blocked():
+                remaining_formatted = login_attempt.get_remaining_block_time_formatted()
+                response_data.update({
+                    'blocked': True,
+                    'message': f'Has excedido el número de intentos permitidos. Cuenta bloqueada por {remaining_formatted}.',
+                    'blocked_until': login_attempt.blocked_until.isoformat(),
+                    'remaining_seconds': login_attempt.get_remaining_block_time()
+                })
+                return Response(response_data, status=status.HTTP_429_TOO_MANY_REQUESTS)
+            else:
+                if attempts_left > 0:
+                    response_data['message'] = f'Credenciales incorrectas. Te quedan {attempts_left} intento(s).'
+            
+            return Response(response_data, status=status.HTTP_401_UNAUTHORIZED)
 
+        # 3️⃣ AUTENTICAR
         user_auth = authenticate(username=user.username, password=password)
+        
         if not user_auth:
-            return Response(
-                {"error": "Credenciales inválidas"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            # ❌ CONTRASEÑA INCORRECTA
+            login_attempt.increment_failed_attempt()
+            
+            attempts_left = max(0, 3 - login_attempt.failed_attempts)
+            
+            response_data = {
+                'error': 'Credenciales inválidas',
+                'failed_attempts': login_attempt.failed_attempts,
+                'remaining_attempts': attempts_left
+            }
+            
+            # Si se bloqueó en este intento, informar
+            if login_attempt.is_blocked():
+                remaining_formatted = login_attempt.get_remaining_block_time_formatted()
+                response_data.update({
+                    'blocked': True,
+                    'message': f'Has excedido el número de intentos permitidos. Cuenta bloqueada por {remaining_formatted}.',
+                    'blocked_until': login_attempt.blocked_until.isoformat(),
+                    'remaining_seconds': login_attempt.get_remaining_block_time()
+                })
+                return Response(response_data, status=status.HTTP_429_TOO_MANY_REQUESTS)
+            else:
+                if attempts_left > 0:
+                    response_data['message'] = f'Credenciales incorrectas. Te quedan {attempts_left} intento(s).'
+                
+                return Response(response_data, status=status.HTTP_401_UNAUTHORIZED)
 
+        # 4️⃣ LOGIN EXITOSO ✅
+        # Resetear intentos fallidos
+        login_attempt.reset_attempts()
+        
+        # Obtener o crear token
         token, _ = Token.objects.get_or_create(user=user_auth)
-
+        
+        # Determinar rol EFECTIVO
         role = 'admin' if (user_auth.is_superuser or user_auth.is_staff) else (
             getattr(getattr(user_auth, 'profile', None), 'role', 'cliente')
         )
@@ -92,7 +174,8 @@ class EmailLoginView(APIView):
             "email": user_auth.email,
             "role": role,                # ← EFECTIVO
             "is_staff": user_auth.is_staff,
-            "user_id": user_auth.id
+            "user_id": user_auth.id,
+            "message": "Login exitoso"
         }, status=status.HTTP_200_OK)
 
 
@@ -178,7 +261,6 @@ class EmpleadoViewSet(viewsets.ModelViewSet):
 
         # Asegura profile
         if not hasattr(user, 'profile'):
-            from usuarios.models import UserProfile
             UserProfile.objects.get_or_create(user=user, defaults={'role': 'cliente'})
 
         if user.profile.role != new_role:
@@ -228,14 +310,6 @@ def me(request):
         "is_superuser": u.is_superuser,
         "is_staff": u.is_staff,
     }, status=status.HTTP_200_OK)
-
-# ✅ AGREGAR AL FINAL DE usuarios/views.py
-
-from django.core.mail import send_mail
-from django.contrib.auth.tokens import default_token_generator
-from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
-from django.utils.encoding import force_bytes, force_str
-from django.conf import settings
 
 
 # -------------------------------------------------------------------

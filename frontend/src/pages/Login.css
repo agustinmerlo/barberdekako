@@ -6,8 +6,10 @@
     --text-color-light: #ffffff;
     --text-color-dark: #333333;
     --card-background: rgba(0, 0, 0, 0.75);
-    /* Traslúcido */
     --input-background: #ffffff;
+    --error-color: #ff5252;
+    --warning-color: #ff9800;
+    --blocked-color: #f44336;
 }
 
 /* --- Contenedor Principal y Fondo --- */
@@ -27,16 +29,14 @@
     left: 0;
     width: 100%;
     height: 100%;
-    /* Usa la imagen de fondo deseada */
     background-image: url('https://png.pngtree.com/background/20230612/original/pngtree-barbershop-with-chairs-in-traditional-styles-and-mirrors-in-front-picture-image_3372710.jpg');
     background-size: cover;
     background-position: center;
     filter: brightness(0.4);
-    /* Oscurecimiento */
     z-index: 1;
 }
 
-/* --- Tarjeta de Login (Oscura y Transparente) --- */
+/* --- Tarjeta de Login --- */
 .login-card {
     background-color: var(--card-background);
     padding: 40px;
@@ -44,17 +44,15 @@
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
     text-align: center;
     z-index: 2;
-    /* Encima del fondo */
     color: var(--text-color-light);
     width: 100%;
-    max-width: 400px;
+    max-width: 450px;
 }
 
 .login-logo-container {
     margin-bottom: 30px;
 }
 
-/* --- ESTILOS PARA EL LOGO DE IMAGEN --- */
 .logo-image {
     width: 100px;
     height: 100px;
@@ -65,11 +63,9 @@
     margin: 0 auto;
 }
 
-/* Ocultar el viejo logo de texto */
 .login-logo {
     display: none !important;
 }
-
 
 .login-card h2 {
     margin-bottom: 30px;
@@ -77,8 +73,7 @@
     font-size: 1.8em;
 }
 
-
-/* --- Formulario y Campos de Input (CORRECCIÓN CRÍTICA DE ICONOS) --- */
+/* --- Formulario --- */
 .login-form {
     display: flex;
     flex-direction: column;
@@ -86,9 +81,9 @@
     margin-bottom: 20px;
 }
 
+/* --- Input Group (Email y Contraseña) --- */
 .input-group {
     position: relative;
-    /* ¡CLAVE! Para posicionar el icono absoluto */
     display: flex;
     align-items: center;
     background: none;
@@ -96,21 +91,19 @@
     border-radius: 0;
 }
 
-/* *** ESTILO DEL ICONO (Aseguramos la posición) *** */
 .input-icon {
     display: flex !important;
     align-items: center;
     position: absolute !important;
     left: 12px !important;
-    /* Mantenemos el icono aquí */
     top: 50%;
     transform: translateY(-50%);
     color: #999;
     font-size: 1.2em;
     z-index: 10;
+    pointer-events: none;
 }
 
-/* *** AJUSTE DEL INPUT: PADDING EXTREMO Y FORZADO (LA SOLUCIÓN FINAL) *** */
 .input-group input {
     flex-grow: 1;
     background-color: var(--input-background);
@@ -118,10 +111,10 @@
     border-radius: 5px;
     outline: none;
     color: var(--text-color-dark);
-    /* ¡CORRECCIÓN CLAVE! 55px con !important para forzar el espacio y vencer la caché */
     padding: 15px 15px 15px 55px !important;
     font-size: 1em;
     transition: border-color 0.3s ease;
+    width: 100%;
 }
 
 .input-group input:focus {
@@ -132,41 +125,57 @@
     color: #999;
 }
 
-/* Ocultar elementos viejos y toggle de ojo */
-.input-toggle-password {
-    display: none;
+.input-group input:disabled {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 
-
-/* --- Opciones y Botón --- */
-.form-options {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.9em;
+/* 👁️ Input Group con Botón de Contraseña */
+.password-group {
+    position: relative;
 }
 
-.remember-me {
-    color: #ccc;
-    display: flex;
-    align-items: center;
+.password-group input {
+    padding-right: 50px !important;
+}
+
+/* 👁️ Botón para Mostrar/Ocultar Contraseña */
+.toggle-password-btn {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
     cursor: pointer;
+    font-size: 1.3em;
+    padding: 5px 8px;
+    border-radius: 5px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+    z-index: 10;
+    color: #666;
 }
 
-.remember-me input[type="checkbox"] {
-    margin-right: 5px;
-    accent-color: var(--primary-color);
+.toggle-password-btn:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.05);
+    opacity: 1;
 }
 
-.form-options a {
-    color: var(--primary-color);
-    text-decoration: none;
+.toggle-password-btn:active:not(:disabled) {
+    transform: translateY(-50%) scale(0.95);
 }
 
-.form-options a:hover {
-    text-decoration: underline;
+.toggle-password-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
 }
 
+/* --- Botón de Login --- */
 .login-button {
     background-color: var(--primary-color);
     color: black;
@@ -179,12 +188,119 @@
     font-weight: bold;
 }
 
-.login-button:hover {
+.login-button:hover:not(:disabled) {
     background-color: #e0a800;
 }
 
+.login-button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
 
-/* --- Enlace de Registro --- */
+/* --- Alertas de Error y Bloqueo --- */
+.alert {
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+    text-align: left;
+    animation: slideIn 0.3s ease-out;
+}
+
+.alert-error {
+    background-color: rgba(255, 82, 82, 0.1);
+    border: 1px solid var(--error-color);
+    color: var(--error-color);
+}
+
+.alert-blocked {
+    background-color: rgba(244, 67, 54, 0.1);
+    border: 1px solid var(--blocked-color);
+    color: var(--blocked-color);
+}
+
+.alert strong {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 1.1em;
+}
+
+.alert p {
+    margin: 5px 0;
+    line-height: 1.5;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* --- Contador de Tiempo Circular --- */
+.countdown-timer {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.timer-circle {
+    position: relative;
+    width: 60px;
+    height: 60px;
+}
+
+.timer-circle svg {
+    transform: rotate(-90deg);
+}
+
+.timer-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.7em;
+    font-weight: bold;
+    color: var(--primary-color);
+    text-align: center;
+    white-space: nowrap;
+    max-width: 50px;
+}
+
+/* --- Advertencia de Intentos --- */
+.attempts-warning {
+    background-color: rgba(255, 152, 0, 0.1);
+    border: 1px solid var(--warning-color);
+    color: var(--warning-color);
+    padding: 12px;
+    border-radius: 8px;
+    margin: 10px 0;
+    text-align: center;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.attempts-warning p {
+    margin: 5px 0;
+}
+
+.attempts-warning strong {
+    color: #fff;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* --- Enlaces --- */
 .register-link-container {
     margin-top: 25px;
     font-size: 0.95em;
@@ -199,4 +315,45 @@
 
 .register-link-container a:hover {
     text-decoration: underline;
+}
+
+/* --- Responsive --- */
+@media (max-width: 480px) {
+    .login-card {
+        padding: 30px 20px;
+        max-width: 90%;
+    }
+
+    .login-card h2 {
+        font-size: 1.5em;
+    }
+
+    .logo-image {
+        width: 80px;
+        height: 80px;
+    }
+
+    .timer-text {
+        font-size: 0.6em;
+        max-width: 45px;
+    }
+
+    .input-group input {
+        padding: 12px 12px 12px 50px !important;
+        font-size: 0.95em;
+    }
+
+    .password-group input {
+        padding-right: 45px !important;
+    }
+
+    .toggle-password-btn {
+        font-size: 1.2em;
+        right: 10px;
+    }
+
+    .input-icon {
+        font-size: 1.1em;
+        left: 10px !important;
+    }
 }

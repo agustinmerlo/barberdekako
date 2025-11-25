@@ -1,7 +1,19 @@
 // src/pages/Login.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+
+// ÍCONOS FLUENT UI (Microsoft Edge)
+import {
+  Person24Regular,
+  LockClosed24Regular,
+  Eye24Regular,
+  EyeOff24Regular,
+  ErrorCircle24Regular,
+  Warning24Regular,
+  LockShield24Regular
+} from "@fluentui/react-icons";
+
 import './Login.css';
 
 const DJANGO_LOGIN_URL = 'http://localhost:8000/api/usuarios/login/';
@@ -11,28 +23,59 @@ function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
-
+  const [formData, setFormData] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const handleChange = (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [remainingSeconds, setRemainingSeconds] = useState(0);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [remainingAttempts, setRemainingAttempts] = useState(3);
+
+  const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    if (remainingSeconds > 0) {
+      const timer = setInterval(() => {
+        setRemainingSeconds(prev => {
+          if (prev <= 1) {
+            setIsBlocked(false);
+            setError(null);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [remainingSeconds]);
+
+  const formatTime = seconds => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+
+    if (mins > 0) return `${mins} minuto${mins !== 1 ? 's' : ''} y ${secs} segundo${secs !== 1 ? 's' : ''}`;
+    return `${secs} segundo${secs !== 1 ? 's' : ''}`;
   };
 
-  const handleSubmit = async (e) => {
+  const handleChange = e => {
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(prev => !prev);
+  };
+
+  const handleSubmit = async e => {
     e.preventDefault();
+
+    if (isBlocked) return;
+
     setError(null);
     setLoading(true);
 
     try {
-      // 1) LOGIN
       const loginRes = await fetch(DJANGO_LOGIN_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -41,24 +84,36 @@ function Login() {
 
       const loginData = await loginRes.json();
 
+      if (loginRes.status === 429) {
+        setIsBlocked(true);
+        setRemainingSeconds(loginData.remaining_seconds || 300);
+        setFailedAttempts(loginData.failed_attempts || 0);
+        setError(loginData.message || 'Cuenta temporalmente bloqueada');
+        setLoading(false);
+        return;
+      }
+
       if (!loginRes.ok) {
+        if (loginData.failed_attempts !== undefined) {
+          setFailedAttempts(loginData.failed_attempts);
+          setRemainingAttempts(loginData.remaining_attempts || 0);
+        }
+
         const msg =
+          loginData.message ||
           loginData.error ||
           loginData.detail ||
           loginData.non_field_errors?.[0] ||
           loginData.email?.[0] ||
           loginData.password?.[0] ||
-          'Credenciales inválidas. Intenta nuevamente.';
+          'Credenciales inválidas.';
+
         throw new Error(msg);
       }
 
-      // Guardar token
       const token = loginData.token;
-      if (!token) {
-        throw new Error('El backend no devolvió token.');
-      }
+      if (!token) throw new Error('El backend no devolvió token.');
 
-      // 2) SINCRONIZAR ROL EFECTIVO DESDE BACKEND
       const meRes = await fetch(AUTH_ME_URL, {
         method: 'GET',
         headers: {
@@ -68,44 +123,29 @@ function Login() {
       });
 
       const meData = await meRes.json();
+      if (!meRes.ok) throw new Error(meData.error || 'No se pudo obtener el perfil.');
 
-      if (!meRes.ok) {
-        const msg =
-          meData.error ||
-          meData.detail ||
-          'No se pudo obtener el perfil del usuario.';
-        throw new Error(msg);
-      }
-
-      // Role efectivo (superuser/staff => admin)
       const role = (meData.role || 'cliente').toLowerCase();
       const userId = meData.user_id;
 
-      // 3) ACTUALIZAR CONTEXTO
-      const userData = {
+      login({
         user_id: userId,
         email: meData.email,
         nombre: meData.nombre || '',
         apellido: meData.apellido || '',
         telefono: meData.telefono || '',
-        role: role,
-      };
+        role,
+      }, token);
 
-      login(userData, token);
+      setFailedAttempts(0);
+      setRemainingAttempts(3);
 
-      // 4) REDIRECCIÓN SEGÚN ROL
-      console.log('✅ Login exitoso:', userData);
-      
-      if (role === 'admin') {
-        navigate('/home');
-      } else if (role === 'barbero') {
-        navigate('/barbero/home');
-      } else {
-        navigate('/cliente');
-      }
-    } catch (apiError) {
-      console.error('❌ Error al iniciar sesión:', apiError);
-      setError(apiError.message || 'Error de red o del servidor.');
+      if (role === 'admin') navigate('/home');
+      else if (role === 'barbero') navigate('/barbero/home');
+      else navigate('/cliente');
+
+    } catch (err) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -123,61 +163,65 @@ function Login() {
 
         <form className="login-form" onSubmit={handleSubmit}>
           <div className="input-group">
-            <span className="input-icon" role="img" aria-label="persona">
-              👤
-            </span>
+            <Person24Regular className="input-icon" />
             <input
               type="email"
               placeholder="Correo Electrónico"
               name="email"
-              autoComplete="email"
               value={formData.email}
               onChange={handleChange}
+              disabled={isBlocked || loading}
               required
             />
           </div>
 
-          <div className="input-group">
-            <span className="input-icon" role="img" aria-label="candado">
-              🔒
-            </span>
+          <div className="input-group password-group">
+            <LockClosed24Regular className="input-icon" />
             <input
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               placeholder="Contraseña"
               name="password"
-              autoComplete="current-password"
               value={formData.password}
               onChange={handleChange}
+              disabled={isBlocked || loading}
               required
             />
+            <button
+              type="button"
+              className="toggle-password-btn"
+              onClick={togglePasswordVisibility}
+            >
+              {showPassword ? <EyeOff24Regular /> : <Eye24Regular />}
+            </button>
           </div>
 
           {error && (
-            <p style={{ color: 'red', fontSize: '0.9em', marginTop: '8px' }}>{error}</p>
+            <div className={`alert ${isBlocked ? 'alert-blocked' : 'alert-error'}`}>
+              <strong>
+                {isBlocked ? <LockShield24Regular /> : <ErrorCircle24Regular />}
+                &nbsp;{isBlocked ? 'Cuenta Bloqueada' : 'Error'}
+              </strong>
+              <p>{error}</p>
+            </div>
           )}
 
-          <button type="submit" className="login-button" disabled={loading}>
-            {loading ? 'Iniciando...' : 'Entrar'}
+          {!isBlocked && failedAttempts > 0 && (
+            <div className="attempts-warning">
+              <p>
+                <Warning24Regular /> Intentos fallidos: <strong>{failedAttempts}</strong>
+              </p>
+              <p>Restantes: {remainingAttempts}</p>
+            </div>
+          )}
+
+          <button type="submit" className="login-button" disabled={loading || isBlocked}>
+            {isBlocked ? 'Bloqueado' : loading ? 'Iniciando...' : 'Entrar'}
           </button>
         </form>
 
         <div style={{ textAlign: 'center', marginTop: '15px' }}>
-          <Link 
-            to="/forgot-password" 
-            style={{ 
-              color: '#8B4513', 
-              textDecoration: 'none',
-              fontSize: '0.9em',
-              display: 'block',
-              marginBottom: '10px'
-            }}
-          >
-            ¿Olvidaste tu contraseña?
-          </Link>
-          
-          <p className="register-link-container" style={{ marginTop: '10px' }}>
-            ¿No tienes una cuenta? <Link to="/register">Regístrate</Link>
-          </p>
+          <Link to="/forgot-password">¿Olvidaste tu contraseña?</Link>
+          <p className="register-link-container">¿No tienes una cuenta? <Link to="/register">Regístrate</Link></p>
         </div>
       </div>
     </div>

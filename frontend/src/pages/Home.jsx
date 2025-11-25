@@ -6,6 +6,9 @@ import ReservasPendientes from "./ReservasPendientes";
 import Agenda from "./Agenda";
 import Pagos from "./Pagos";
 import MovimientosCaja from "./MovimientosCaja";
+import Barberos from "./Barbers";
+import Servicios from "./Serviciosadmin";
+import Empleados from "./Empleados";
 
 const API_URL = "http://localhost:8000/api";
 
@@ -92,16 +95,13 @@ const ServiciosVendidosChart = () => {
       reservasFiltradas.forEach((reserva) => {
         if (reserva.servicios && Array.isArray(reserva.servicios)) {
           reserva.servicios.forEach((servicio) => {
-            // ✅ NORMALIZAR NOMBRE: minúsculas, sin espacios extras, capitalizar primera letra
             let nombreOriginal = servicio.nombre || "Sin nombre";
             
-            // Convertir a minúsculas y quitar espacios extras
             let nombreNormalizado = nombreOriginal
               .toLowerCase()
               .trim()
-              .replace(/\s+/g, ' '); // Reemplazar múltiples espacios por uno solo
+              .replace(/\s+/g, ' ');
             
-            // Capitalizar primera letra de cada palabra
             nombreNormalizado = nombreNormalizado
               .split(' ')
               .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -128,10 +128,6 @@ const ServiciosVendidosChart = () => {
         (a, b) => b.cantidad - a.cantidad
       );
 
-      // 🔍 DEBUG: Ver qué servicios se están contando
-      console.log("📊 Servicios encontrados:", serviciosArray);
-      console.log("📋 Reservas filtradas:", reservasFiltradas.length);
-
       setData(serviciosArray);
     } catch (err) {
       console.error("Error cargando datos:", err);
@@ -152,10 +148,8 @@ const ServiciosVendidosChart = () => {
     "#4caf50",
   ];
 
-  // Calcular el total de ventas para los porcentajes
   const totalVentas = data.reduce((sum, s) => sum + s.cantidad, 0);
 
-  // Calcular ángulos para el gráfico de torta
   const dataWithAngles = data.map((servicio, index) => {
     const porcentaje = (servicio.cantidad / totalVentas) * 100;
     return {
@@ -187,34 +181,15 @@ const ServiciosVendidosChart = () => {
         }}
       >
         <div>
-          <h2
-            style={{
-              color: "#FFD700",
-              margin: 0,
-              fontSize: "1.25rem",
-            }}
-          >
+          <h2 style={{ color: "#FFD700", margin: 0, fontSize: "1.25rem" }}>
             📊 Servicios Más Vendidos
           </h2>
-          <p
-            style={{
-              color: "#a0a0a0",
-              margin: "4px 0 0",
-              fontSize: "0.85rem",
-            }}
-          >
+          <p style={{ color: "#a0a0a0", margin: "4px 0 0", fontSize: "0.85rem" }}>
             Rendimiento por servicio en el período seleccionado.
           </p>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            gap: "10px",
-            alignItems: "flex-end",
-            flexWrap: "wrap",
-          }}
-        >
+        <div style={{ display: "flex", gap: "10px", alignItems: "flex-end", flexWrap: "wrap" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             <label style={{ color: "#aaa", fontSize: "0.8em" }}>Desde</label>
             <input
@@ -280,73 +255,51 @@ const ServiciosVendidosChart = () => {
       </div>
 
       {loading ? (
-        <div
-          style={{
-            padding: "40px",
-            textAlign: "center",
-            color: "#aaa",
-            fontSize: "0.95rem",
-          }}
-        >
+        <div style={{ padding: "40px", textAlign: "center", color: "#aaa", fontSize: "0.95rem" }}>
           Cargando datos del gráfico...
         </div>
       ) : error ? (
-        <div
-          style={{
-            padding: "30px",
-            textAlign: "center",
-            color: "#ff7474",
-            backgroundColor: "#2a1f1f",
-            borderRadius: "8px",
-            border: "1px solid #5c2a2a",
-            fontSize: "0.95rem",
-          }}
-        >
+        <div style={{
+          padding: "30px",
+          textAlign: "center",
+          color: "#ff7474",
+          backgroundColor: "#2a1f1f",
+          borderRadius: "8px",
+          border: "1px solid #5c2a2a",
+          fontSize: "0.95rem",
+        }}>
           ⚠️ {error}
         </div>
       ) : data.length === 0 ? (
-        <div
-          style={{
-            padding: "40px",
-            textAlign: "center",
-            color: "#aaa",
-            backgroundColor: "#202020",
-            borderRadius: "8px",
-            border: "1px dashed #333",
-            fontSize: "0.95rem",
-          }}
-        >
+        <div style={{
+          padding: "40px",
+          textAlign: "center",
+          color: "#aaa",
+          backgroundColor: "#202020",
+          borderRadius: "8px",
+          border: "1px dashed #333",
+          fontSize: "0.95rem",
+        }}>
           📭 No hay servicios vendidos en este período
         </div>
       ) : (
         <>
-          {/* GRÁFICO DE TORTA */}
-          <div
-            style={{
-              backgroundColor: "#202020",
-              borderRadius: "10px",
-              padding: "26px 16px 18px",
-              marginBottom: "22px",
-              border: "1px solid #292929",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                flexDirection: window.innerWidth > 768 ? "row" : "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "40px",
-                minHeight: "350px",
-              }}
-            >
-              {/* SVG - Gráfico de Torta */}
-              <svg
-                width="300"
-                height="300"
-                viewBox="0 0 300 300"
-                style={{ maxWidth: "100%" }}
-              >
+          <div style={{
+            backgroundColor: "#202020",
+            borderRadius: "10px",
+            padding: "26px 16px 18px",
+            marginBottom: "22px",
+            border: "1px solid #292929",
+          }}>
+            <div style={{
+              display: "flex",
+              flexDirection: window.innerWidth > 768 ? "row" : "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "40px",
+              minHeight: "350px",
+            }}>
+              <svg width="300" height="300" viewBox="0 0 300 300" style={{ maxWidth: "100%" }}>
                 <g transform="translate(150, 150)">
                   {dataWithAngles.map((servicio, index) => {
                     const startAngle = dataWithAngles
@@ -364,11 +317,9 @@ const ServiciosVendidosChart = () => {
                     const y2 = radius * Math.sin(endRad);
                     
                     const largeArc = endAngle - startAngle > 180 ? 1 : 0;
-                    
                     const isHovered = hoveredIndex === index;
                     const scale = isHovered ? 1.05 : 1;
                     
-                    // Calcular posición del texto (porcentaje)
                     const midAngle = (startAngle + endAngle) / 2;
                     const midRad = (midAngle - 90) * (Math.PI / 180);
                     const textRadius = radius * 0.7;
@@ -398,7 +349,6 @@ const ServiciosVendidosChart = () => {
                           }}
                         />
                         
-                        {/* Porcentaje en el centro de cada porción */}
                         {parseFloat(servicio.porcentaje) > 5 && (
                           <text
                             x={textX}
@@ -408,9 +358,7 @@ const ServiciosVendidosChart = () => {
                             fill="#000"
                             fontSize="14"
                             fontWeight="bold"
-                            style={{
-                              pointerEvents: "none",
-                            }}
+                            style={{ pointerEvents: "none" }}
                           >
                             {servicio.porcentaje}%
                           </text>
@@ -419,42 +367,17 @@ const ServiciosVendidosChart = () => {
                     );
                   })}
                   
-                  {/* Círculo central (estilo donut) */}
-                  <circle
-                    r="45"
-                    fill="#202020"
-                    stroke="#FFD700"
-                    strokeWidth="3"
-                  />
-                  <text
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fill="#FFD700"
-                    fontSize="16"
-                    fontWeight="bold"
-                  >
+                  <circle r="45" fill="#202020" stroke="#FFD700" strokeWidth="3" />
+                  <text textAnchor="middle" dominantBaseline="middle" fill="#FFD700" fontSize="16" fontWeight="bold">
                     {totalVentas}
                   </text>
-                  <text
-                    textAnchor="middle"
-                    y="20"
-                    fill="#aaa"
-                    fontSize="11"
-                  >
+                  <text textAnchor="middle" y="20" fill="#aaa" fontSize="11">
                     ventas
                   </text>
                 </g>
               </svg>
 
-              {/* Leyenda */}
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "12px",
-                  maxWidth: "300px",
-                }}
-              >
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: "300px" }}>
                 {dataWithAngles.map((servicio, index) => (
                   <div
                     key={index}
@@ -472,250 +395,32 @@ const ServiciosVendidosChart = () => {
                       border: hoveredIndex === index ? `2px solid ${servicio.color}` : "2px solid transparent",
                     }}
                   >
-                    <div
-                      style={{
-                        width: "16px",
-                        height: "16px",
-                        borderRadius: "4px",
-                        backgroundColor: servicio.color,
-                        flexShrink: 0,
-                        boxShadow: hoveredIndex === index ? `0 0 10px ${servicio.color}` : "none",
-                      }}
-                    />
+                    <div style={{
+                      width: "16px",
+                      height: "16px",
+                      borderRadius: "4px",
+                      backgroundColor: servicio.color,
+                      flexShrink: 0,
+                      boxShadow: hoveredIndex === index ? `0 0 10px ${servicio.color}` : "none",
+                    }} />
                     <div style={{ flex: 1 }}>
-                      <div
-                        style={{
-                          color: "#fff",
-                          fontSize: "0.9rem",
-                          fontWeight: hoveredIndex === index ? "bold" : "normal",
-                        }}
-                      >
+                      <div style={{
+                        color: "#fff",
+                        fontSize: "0.9rem",
+                        fontWeight: hoveredIndex === index ? "bold" : "normal",
+                      }}>
                         {servicio.nombre}
                       </div>
-                      <div
-                        style={{
-                          color: "#aaa",
-                          fontSize: "0.8rem",
-                          marginTop: "2px",
-                        }}
-                      >
+                      <div style={{ color: "#aaa", fontSize: "0.8rem", marginTop: "2px" }}>
                         {servicio.cantidad} ventas • {formatMoney(servicio.total)}
                       </div>
                     </div>
-                    <div
-                      style={{
-                        color: servicio.color,
-                        fontSize: "1.1rem",
-                        fontWeight: "bold",
-                      }}
-                    >
+                    <div style={{ color: servicio.color, fontSize: "1.1rem", fontWeight: "bold" }}>
                       {servicio.porcentaje}%
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-
-          {/* TABLA RESUMEN */}
-          <div>
-            <h3
-              style={{
-                color: "#FFD700",
-                marginBottom: "12px",
-                fontSize: "1.05em",
-              }}
-            >
-              📋 Resumen detallado
-            </h3>
-            <div
-              style={{
-                overflowX: "auto",
-                backgroundColor: "#202020",
-                borderRadius: "8px",
-                padding: "10px",
-                border: "1px solid #292929",
-              }}
-            >
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  color: "#ddd",
-                  fontSize: "0.9rem",
-                }}
-              >
-                <thead>
-                  <tr style={{ borderBottom: "2px solid #303030" }}>
-                    <th
-                      style={{
-                        padding: "10px",
-                        textAlign: "left",
-                        color: "#FFD700",
-                      }}
-                    >
-                      Puesto
-                    </th>
-                    <th
-                      style={{
-                        padding: "10px",
-                        textAlign: "left",
-                        color: "#FFD700",
-                      }}
-                    >
-                      Servicio
-                    </th>
-                    <th
-                      style={{
-                        padding: "10px",
-                        textAlign: "center",
-                        color: "#FFD700",
-                      }}
-                    >
-                      %
-                    </th>
-                    <th
-                      style={{
-                        padding: "10px",
-                        textAlign: "center",
-                        color: "#FFD700",
-                      }}
-                    >
-                      Ventas
-                    </th>
-                    <th
-                      style={{
-                        padding: "10px",
-                        textAlign: "right",
-                        color: "#FFD700",
-                      }}
-                    >
-                      Precio
-                    </th>
-                    <th
-                      style={{
-                        padding: "10px",
-                        textAlign: "right",
-                        color: "#FFD700",
-                      }}
-                    >
-                      Total
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dataWithAngles.map((servicio, index) => (
-                    <tr
-                      key={index}
-                      style={{
-                        borderBottom: "1px solid #303030",
-                        transition: "background 0.2s",
-                      }}
-                      onMouseOver={(e) =>
-                        (e.currentTarget.style.backgroundColor = "#262626")
-                      }
-                      onMouseOut={(e) =>
-                        (e.currentTarget.style.backgroundColor = "transparent")
-                      }
-                    >
-                      <td style={{ padding: "10px" }}>
-                        <span
-                          style={{
-                            backgroundColor: servicio.color,
-                            color: "#000",
-                            padding: "4px 10px",
-                            borderRadius: "6px",
-                            fontWeight: "bold",
-                            fontSize: "0.85em",
-                          }}
-                        >
-                          #{index + 1}
-                        </span>
-                      </td>
-                      <td style={{ padding: "10px", fontWeight: "500" }}>
-                        {servicio.nombre}
-                      </td>
-                      <td
-                        style={{
-                          padding: "10px",
-                          textAlign: "center",
-                          color: servicio.color,
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {servicio.porcentaje}%
-                      </td>
-                      <td
-                        style={{
-                          padding: "10px",
-                          textAlign: "center",
-                          fontSize: "1em",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {servicio.cantidad}
-                      </td>
-                      <td
-                        style={{
-                          padding: "10px",
-                          textAlign: "right",
-                          color: "#bbb",
-                        }}
-                      >
-                        {formatMoney(servicio.precio)}
-                      </td>
-                      <td
-                        style={{
-                          padding: "10px",
-                          textAlign: "right",
-                          color: "#4caf50",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {formatMoney(servicio.total)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr
-                    style={{
-                      borderTop: "2px solid #FFD700",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    <td
-                      colSpan="3"
-                      style={{ padding: "10px", color: "#FFD700" }}
-                    >
-                      TOTAL
-                    </td>
-                    <td
-                      style={{
-                        padding: "10px",
-                        textAlign: "center",
-                        color: "#fff",
-                        fontSize: "1.05em",
-                      }}
-                    >
-                      {totalVentas}
-                    </td>
-                    <td style={{ padding: "10px" }} />
-                    <td
-                      style={{
-                        padding: "10px",
-                        textAlign: "right",
-                        color: "#4caf50",
-                        fontSize: "1.05em",
-                      }}
-                    >
-                      {formatMoney(
-                        dataWithAngles.reduce((sum, s) => sum + s.total, 0)
-                      )}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
             </div>
           </div>
         </>
@@ -740,7 +445,6 @@ const Home = () => {
 
   const [popularServices, setPopularServices] = useState([]);
   const [loadingServices, setLoadingServices] = useState(true);
-  const [savingIds, setSavingIds] = useState({});
   const [errorMsg, setErrorMsg] = useState("");
 
   const [notifications, setNotifications] = useState([
@@ -834,43 +538,15 @@ const Home = () => {
   };
 
   const handleSectionClick = (section) => {
+    // Validar permisos solo para admin en estas secciones
+    if (["Barberos", "Servicios", "Empleados"].includes(section.name)) {
+      if (role !== "admin") {
+        alert("Solo los administradores pueden acceder a esta sección.");
+        return;
+      }
+    }
+
     setActiveSection(section.name);
-
-    if (section.name === "Barberos") {
-      if (role === "admin") {
-        navigate("/barbers");
-      } else {
-        alert("Solo los administradores pueden acceder a esta sección.");
-      }
-      return;
-    }
-
-    if (section.name === "Servicios") {
-      if (role === "admin") {
-        navigate("/services-admin");
-      } else {
-        alert("Solo los administradores pueden acceder a esta sección.");
-      }
-      return;
-    }
-
-    if (section.name === "Proveedores") {
-      if (role === "admin") {
-        navigate("/proveedores");
-      } else {
-        alert("Solo los administradores pueden acceder a esta sección.");
-      }
-      return;
-    }
-
-    if (section.name === "Empleados") {
-      if (role === "admin") {
-        navigate("/empleados");
-      } else {
-        alert("Solo los administradores pueden acceder a esta sección.");
-      }
-      return;
-    }
   };
 
   const formatearHora = (hora) => {
@@ -926,18 +602,12 @@ const Home = () => {
               ) : (
                 <ul className="notif-list">
                   {notifications.map((n) => (
-                    <li
-                      key={n.id}
-                      className={`notif-item ${n.read ? "" : "unread"}`}
-                    >
+                    <li key={n.id} className={`notif-item ${n.read ? "" : "unread"}`}>
                       <div className="notif-text">
                         <p>{n.text}</p>
                         <small>{n.time}</small>
                       </div>
-                      <button
-                        className="clear-btn"
-                        onClick={() => removeNotification(n.id)}
-                      >
+                      <button className="clear-btn" onClick={() => removeNotification(n.id)}>
                         ×
                       </button>
                     </li>
@@ -959,9 +629,7 @@ const Home = () => {
           {sections.map((sec) => (
             <button
               key={sec.name}
-              className={`menu-item ${
-                activeSection === sec.name ? "active" : ""
-              }`}
+              className={`menu-item ${activeSection === sec.name ? "active" : ""}`}
               onClick={() => handleSectionClick(sec)}
             >
               <span className="icon">{sec.icon}</span>
@@ -985,6 +653,12 @@ const Home = () => {
           <MovimientosCaja />
         ) : activeSection === "Agenda" ? (
           <Agenda />
+        ) : activeSection === "Barberos" ? (
+          <Barberos />
+        ) : activeSection === "Servicios" ? (
+          <Servicios />
+        ) : activeSection === "Empleados" ? (
+          <Empleados />
         ) : activeSection === "Perfil" ? (
           <div className="stats-grid">
             <Perfil
@@ -999,23 +673,11 @@ const Home = () => {
               <h2>Próximas citas</h2>
 
               {loadingCitas ? (
-                <div
-                  style={{
-                    padding: "20px",
-                    textAlign: "center",
-                    color: "#aaa",
-                  }}
-                >
+                <div style={{ padding: "20px", textAlign: "center", color: "#aaa" }}>
                   Cargando citas...
                 </div>
               ) : citas.length === 0 ? (
-                <div
-                  style={{
-                    padding: "20px",
-                    textAlign: "center",
-                    color: "#aaa",
-                  }}
-                >
+                <div style={{ padding: "20px", textAlign: "center", color: "#aaa" }}>
                   No hay citas próximas
                 </div>
               ) : (
@@ -1024,14 +686,12 @@ const Home = () => {
                     <div key={cita.id} className="appointment-card">
                       <div className="appointment-time">
                         {formatearHora(cita.horario)}
-                        <small
-                          style={{
-                            display: "block",
-                            fontSize: "0.7em",
-                            color: "#888",
-                            marginTop: "2px",
-                          }}
-                        >
+                        <small style={{
+                          display: "block",
+                          fontSize: "0.7em",
+                          color: "#888",
+                          marginTop: "2px",
+                        }}>
                           {formatearFecha(cita.fecha)}
                         </small>
                       </div>
@@ -1043,13 +703,11 @@ const Home = () => {
                         {cita.servicios && cita.servicios.length > 0
                           ? cita.servicios.map((s) => s.nombre).join(", ")
                           : "Sin servicio"}
-                        <div
-                          style={{
-                            fontSize: "0.85em",
-                            color: "#FFD700",
-                            marginTop: "4px",
-                          }}
-                        >
+                        <div style={{
+                          fontSize: "0.85em",
+                          color: "#FFD700",
+                          marginTop: "4px",
+                        }}>
                           👤 {cita.barbero_nombre || "Sin asignar"}
                         </div>
                       </div>
@@ -1082,12 +740,7 @@ const Home = () => {
                 ) : (
                   <ul className="services-list">
                     {popularServices.slice(0, 5).map((s) => (
-                      <li
-                        key={s.id}
-                        className={`service-item ${
-                          savingIds[s.id] ? "saving" : ""
-                        }`}
-                      >
+                      <li key={s.id} className="service-item">
                         <div className="service-header">
                           <span className="service-name">{s.nombre}</span>
                           <span className="service-value">

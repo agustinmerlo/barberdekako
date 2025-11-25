@@ -2,10 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Register.css';
 
+// Íconos Fluent UI (Microsoft Edge)
+import {
+    Person24Regular,
+    Mail24Regular,
+    LockClosed24Regular
+} from "@fluentui/react-icons";
+
 function Register() {
     const navigate = useNavigate();
 
-    // Estado del formulario
     const [formData, setFormData] = useState({
         username: '',
         email: '',
@@ -16,21 +22,22 @@ function Register() {
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
 
-    // Estado de validación de contraseña
     const [passwordValidations, setPasswordValidations] = useState({
+        hasCaracter: false,
         hasUppercase: false,
         hasNumber: false,
         hasSymbol: false,
     });
 
-    // Validación dinámica de contraseña
+    // VALIDACIÓN DINÁMICA DE CONTRASEÑA
     useEffect(() => {
         setPasswordValidations({
+            hasCaracter: formData.password.length >= 6,
             hasUppercase: /[A-Z]/.test(formData.password),
             hasNumber: /\d/.test(formData.password),
             hasSymbol: /[!@#$%^&*(),.?":{}|<>]/.test(formData.password),
         });
-    }, [formData]);
+    }, [formData.password]);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -45,8 +52,13 @@ function Register() {
             return;
         }
 
-        // Verificar que todos los requisitos estén completos
-        if (!passwordValidations.hasUppercase || !passwordValidations.hasNumber || !passwordValidations.hasSymbol) {
+        // VALIDAR TODOS LOS REQUISITOS
+        if (
+            !passwordValidations.hasCaracter ||
+            !passwordValidations.hasUppercase ||
+            !passwordValidations.hasNumber ||
+            !passwordValidations.hasSymbol
+        ) {
             setError("La contraseña no cumple todos los requisitos.");
             return;
         }
@@ -66,7 +78,7 @@ function Register() {
             } else {
                 console.log("Registro exitoso:", data);
                 if (data.token) localStorage.setItem("authToken", data.token);
-                navigate("/"); // Redirigir al login
+                navigate("/"); 
             }
         } catch (err) {
             console.error(err);
@@ -88,8 +100,10 @@ function Register() {
                 <p className="subtitle">Es rápido y fácil.</p>
 
                 <form className="form" onSubmit={handleSubmit}>
+
+                    {/* Usuario */}
                     <div className="input-group">
-                        <span className="input-icon">👤</span>
+                        <Person24Regular className="input-icon" />
                         <input
                             type="text"
                             name="username"
@@ -100,8 +114,9 @@ function Register() {
                         />
                     </div>
 
+                    {/* Correo */}
                     <div className="input-group">
-                        <span className="input-icon">📧</span>
+                        <Mail24Regular className="input-icon" />
                         <input
                             type="email"
                             name="email"
@@ -112,8 +127,9 @@ function Register() {
                         />
                     </div>
 
+                    {/* Contraseña */}
                     <div className="input-group">
-                        <span className="input-icon">🔒</span>
+                        <LockClosed24Regular className="input-icon" />
                         <input
                             type="password"
                             name="password"
@@ -124,8 +140,9 @@ function Register() {
                         />
                     </div>
 
+                    {/* Confirmar contraseña */}
                     <div className="input-group">
-                        <span className="input-icon">🔒</span>
+                        <LockClosed24Regular className="input-icon" />
                         <input
                             type="password"
                             name="password2"
@@ -136,14 +153,27 @@ function Register() {
                         />
                     </div>
 
-                    {/* Mensaje de error */}
-                    {error && <p style={{ color: 'red', fontSize: '0.9em', marginTop: '10px' }}>{error}</p>}
+                    {/* Error */}
+                    {error && (
+                        <p style={{ color: 'red', fontSize: '0.9em', marginTop: '10px' }}>
+                            {error}
+                        </p>
+                    )}
 
-                    {/* Requisitos de contraseña */}
+                    {/* Validaciones */}
                     <div className="password-requirements" style={{ textAlign: 'left', marginTop: '10px' }}>
-                        <p style={{ color: passwordValidations.hasUppercase ? 'limegreen' : 'white' }}>• Contiene al menos una letra mayúscula</p>
-                        <p style={{ color: passwordValidations.hasNumber ? 'limegreen' : 'white' }}>• Contiene al menos un número</p>
-                        <p style={{ color: passwordValidations.hasSymbol ? 'limegreen' : 'white' }}>• Contiene al menos un símbolo (!@#$...)</p>
+                        <p style={{ color: passwordValidations.hasCaracter ? 'limegreen' : 'white' }}>
+                            • Contiene al menos 6 caracteres
+                        </p>
+                        <p style={{ color: passwordValidations.hasUppercase ? 'limegreen' : 'white' }}>
+                            • Contiene al menos una letra mayúscula
+                        </p>
+                        <p style={{ color: passwordValidations.hasNumber ? 'limegreen' : 'white' }}>
+                            • Contiene al menos un número
+                        </p>
+                        <p style={{ color: passwordValidations.hasSymbol ? 'limegreen' : 'white' }}>
+                            • Contiene al menos un símbolo (!@#$...)
+                        </p>
                     </div>
 
                     <button type="submit" className="register-button" disabled={loading}>
