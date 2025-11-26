@@ -347,15 +347,26 @@ export default function Cliente() {
             <Link to="/reservar" className="btn btn--primary">Agendar</Link>
           </div>
           <div>
+            <div className="info-icon">📍</div>
             <h3>Ubicación</h3>
-            <p>Av. Principal 123, Salta</p>
+            <p className="info-principal">Barbería Clase V</p>
+            <p className="info-secundario">Av. Belgrano 1234, Salta Capital</p>
+            <p className="info-secundario">Salta, Argentina</p>
+            <a 
+              href="https://www.google.com/maps/search/?api=1&query=Barbería+Clase+V+Av+Belgrano+1234+Salta" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="btn-mapa"
+            >
+              Ver en el mapa →
+            </a>
             <div className="map-embed">
               <iframe
                 title="mapa"
                 loading="lazy"
                 allowFullScreen
                 referrerPolicy="no-referrer-when-downgrade"
-                src="https://www.google.com/maps/embed?pb=!1m18!..."
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d28523.13!2d-65.4165!3d-24.7821!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjTCsDQ2JzU1LjYiUyA2NcKwMjQnNTkuNCJX!5e0!3m2!1ses!2sar!4v1234567890"
               />
             </div>
           </div>

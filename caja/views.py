@@ -1,5 +1,5 @@
 # caja/views.py
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, serializers
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -65,8 +65,9 @@ class TurnoCajaViewSet(viewsets.ModelViewSet):
                 'mensaje': 'No hay ningún turno abierto'
             }, status=200)
         
-        # Actualizar totales antes de devolver
+        # ✅ CORRECCIÓN: Actualizar totales antes de devolver
         turno_abierto.calcular_totales()
+        turno_abierto.refresh_from_db()
         
         serializer = TurnoCajaSerializer(turno_abierto)
         return Response({
@@ -79,15 +80,6 @@ class TurnoCajaViewSet(viewsets.ModelViewSet):
         """
         POST /api/caja/turnos/{id}/cerrar/
         Cierra un turno de caja con TODOS los métodos de pago
-        
-        Body esperado:
-        {
-            "monto_cierre_efectivo": 15000.50,
-            "monto_cierre_transferencia": 8000.00,
-            "monto_cierre_mercadopago": 5000.00,
-            "monto_cierre_seña": 2000.00,
-            "observaciones": "Todo correcto"
-        }
         """
         turno = self.get_object()
         
@@ -111,7 +103,7 @@ class TurnoCajaViewSet(viewsets.ModelViewSet):
                     return Response({
                         'error': f'El monto de {metodo} no puede ser negativo'
                     }, status=400)
-                    
+                        
         except (ValueError, TypeError) as e:
             return Response({
                 'error': 'Los montos de cierre deben ser números válidos'
@@ -119,6 +111,15 @@ class TurnoCajaViewSet(viewsets.ModelViewSet):
         
         observaciones = request.data.get('observaciones', '')
         
+        # ✅ CALCULAR TOTALES ANTES DE CERRAR
+        try:
+            turno.calcular_totales()
+            turno.refresh_from_db()
+        except Exception as e:
+             return Response({
+                'error': f'Error al calcular totales del turno antes de cerrar: {str(e)}'
+            }, status=500)
+            
         # Cerrar el turno
         try:
             turno.cerrar_turno(
@@ -134,6 +135,10 @@ class TurnoCajaViewSet(viewsets.ModelViewSet):
         # Marcar todos los movimientos del turno como no editables
         turno.movimientos_turno.update(es_editable=False)
         
+        # ✅ REFRESCAR EL TURNO DESDE LA BASE DE DATOS
+        turno.refresh_from_db()
+        
+        # Serializar el turno ya cerrado y actualizado
         serializer = TurnoCajaSerializer(turno)
         return Response({
             'mensaje': 'Turno cerrado exitosamente',
@@ -147,9 +152,14 @@ class TurnoCajaViewSet(viewsets.ModelViewSet):
         Obtiene un resumen completo del turno con desglose por TODOS los métodos
         """
         turno = self.get_object()
+        
+        # ✅ ACTUALIZAR TOTALES ANTES DE GENERAR EL RESUMEN
+        turno.calcular_totales()
+        turno.refresh_from_db()
+        
         movimientos = turno.movimientos_turno.all()
         
-        # ✅ Calcular totales por TODOS los métodos de pago
+        # Calcular totales por TODOS los métodos de pago
         metodos = ['efectivo', 'tarjeta', 'transferencia', 'mercadopago', 'seña']
         
         ingresos_por_metodo = {}
@@ -174,7 +184,7 @@ class TurnoCajaViewSet(viewsets.ModelViewSet):
         egresos_por_categoria = {}
         
         categorias = ['servicios', 'productos', 'gastos', 'sueldos', 
-                     'alquiler', 'servicios_publicos', 'otros']
+                      'alquiler', 'servicios_publicos', 'otros']
         
         for cat in categorias:
             ingresos_por_categoria[cat] = float(
@@ -242,8 +252,6 @@ class TurnoCajaViewSet(viewsets.ModelViewSet):
         }, status=200)
 
 
-# caja/views.py - Actualiza el método get_queryset
-
 class MovimientoCajaViewSet(viewsets.ModelViewSet):
     """
     ViewSet para CRUD completo de MovimientoCaja
@@ -254,7 +262,6 @@ class MovimientoCajaViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Aplicar filtros desde query params"""
-        # ✅ USAR distinct() PARA EVITAR DUPLICADOS
         queryset = MovimientoCaja.objects.select_related(
             'turno', 
             'barbero', 
@@ -286,43 +293,70 @@ class MovimientoCajaViewSet(viewsets.ModelViewSet):
         if solo_editables == 'true':
             queryset = queryset.filter(es_editable=True)
         
-        # ✅ ORDENAR CONSISTENTEMENTE
         return queryset.order_by('-fecha_creacion', '-id')
     
     def perform_create(self, serializer):
-        """Asociar usuario y turno activo al crear"""
+        """Asociar usuario y turno activo al crear y actualizar totales"""
         # Buscar turno activo
         turno_activo = TurnoCaja.objects.filter(estado='abierto').first()
         
         if not turno_activo:
-            raise ValueError("No hay un turno de caja abierto. Debes abrir la caja primero.")
+            raise serializers.ValidationError({"turno": "No hay un turno de caja abierto. Debes abrir la caja primero."})
         
         serializer.save(
             usuario_registro=self.request.user if self.request.user.is_authenticated else None,
             turno=turno_activo
         )
+        
+        # ✅ Actualizar totales del turno después de crear
+        turno_activo.calcular_totales()
+        turno_activo.refresh_from_db()
+    
+    def perform_update(self, serializer):
+        """Actualizar y recalcular totales del turno"""
+        instance = self.get_object()
+        
+        if not instance.es_editable:
+            raise serializers.ValidationError(
+                {'non_field_errors': 'Este movimiento no puede ser editado porque pertenece a un turno cerrado'}
+            )
+        
+        serializer.save()
+        
+        # ✅ Actualizar totales del turno después de actualizar
+        if instance.turno:
+            instance.turno.calcular_totales()
+            instance.turno.refresh_from_db()
     
     def update(self, request, *args, **kwargs):
-        """Verificar que el movimiento sea editable antes de actualizar"""
-        instance = self.get_object()
-        
+        """Manejo de la excepción de perform_update"""
+        try:
+            return super().update(request, *args, **kwargs)
+        except serializers.ValidationError as e:
+            return Response({'error': e.detail}, status=400)
+    
+    def perform_destroy(self, instance):
+        """Verificar que el movimiento sea editable antes de eliminar y recalcular totales"""
         if not instance.es_editable:
-            return Response({
-                'error': 'Este movimiento no puede ser editado porque pertenece a un turno cerrado'
-            }, status=400)
+            raise serializers.ValidationError(
+                {'non_field_errors': 'Este movimiento no puede ser eliminado porque pertenece a un turno cerrado'}
+            )
         
-        return super().update(request, *args, **kwargs)
+        turno = instance.turno
+        
+        instance.delete()
+        
+        # ✅ Actualizar totales del turno después de eliminar
+        if turno:
+            turno.calcular_totales()
+            turno.refresh_from_db()
     
     def destroy(self, request, *args, **kwargs):
-        """Verificar que el movimiento sea editable antes de eliminar"""
-        instance = self.get_object()
-        
-        if not instance.es_editable:
-            return Response({
-                'error': 'Este movimiento no puede ser eliminado porque pertenece a un turno cerrado'
-            }, status=400)
-        
-        return super().destroy(request, *args, **kwargs)
+        """Manejo de la excepción de perform_destroy"""
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except serializers.ValidationError as e:
+            return Response({'error': e.detail}, status=400)
     
     @action(detail=False, methods=['get'])
     def estadisticas(self, request):
@@ -351,7 +385,7 @@ class MovimientoCajaViewSet(viewsets.ModelViewSet):
         
         saldo = total_ingresos - total_egresos
         
-        # ✅ Estadísticas por TODOS los métodos de pago
+        # Estadísticas por TODOS los métodos de pago
         metodos = ['efectivo', 'tarjeta', 'transferencia', 'mercadopago', 'seña']
         por_metodo = {}
         
@@ -375,7 +409,7 @@ class MovimientoCajaViewSet(viewsets.ModelViewSet):
         # Estadísticas por categoría
         por_categoria = {}
         categorias = ['servicios', 'productos', 'gastos', 'sueldos', 
-                     'alquiler', 'servicios_publicos', 'otros']
+                      'alquiler', 'servicios_publicos', 'otros']
         
         for cat in categorias:
             ingresos = movimientos.filter(

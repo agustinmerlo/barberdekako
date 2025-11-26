@@ -1,4 +1,3 @@
-# caja/serializers.py
 from rest_framework import serializers
 from .models import MovimientoCaja, CierreCaja, TurnoCaja
 
@@ -23,9 +22,17 @@ class TurnoCajaSerializer(serializers.ModelSerializer):
             'usuario_cierre_nombre',
             'observaciones_cierre',
             
-            # ✅ Totales por método de pago
+            # ✅ Totales de ingresos por método
             'total_ingresos_efectivo',
+            'total_ingresos_transferencia',
+            'total_ingresos_mercadopago',
+            'total_ingresos_seña',
+            
+            # ✅ Totales de egresos por método
             'total_egresos_efectivo',
+            'total_egresos_transferencia',
+            'total_egresos_mercadopago',
+            'total_egresos_seña',
             
             # ✅ Esperados por método
             'efectivo_esperado',
@@ -56,7 +63,13 @@ class TurnoCajaSerializer(serializers.ModelSerializer):
             'fecha_creacion',
             'fecha_actualizacion',
             'total_ingresos_efectivo',
+            'total_ingresos_transferencia',
+            'total_ingresos_mercadopago',
+            'total_ingresos_seña',
             'total_egresos_efectivo',
+            'total_egresos_transferencia',
+            'total_egresos_mercadopago',
+            'total_egresos_seña',
             'efectivo_esperado',
             'transferencia_esperada',
             'mercadopago_esperado',

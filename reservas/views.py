@@ -163,14 +163,19 @@ def horarios_disponibles(request):
 def crear_reserva(request):
     """
     POST /api/reservas/crear/
-    Crea una nueva reserva con seña (NO requiere caja abierta en este momento)
+    Crea una nueva reserva con seña
+    🔒 LÍMITE: 3 comprobantes por día por email
     """
     try:
+        # ===== IMPORTS NECESARIOS =====
+        from .models import ComprobanteLimite
+        
         reserva_raw = request.data.get('reserva')
         cliente_raw = request.data.get('cliente')
         comprobante = request.FILES.get('comprobante')
         monto = request.data.get('monto')
 
+        # Validaciones básicas
         if not reserva_raw:
             return Response({'error': 'Falta el campo: reserva'}, status=400)
         if not cliente_raw:
@@ -186,6 +191,27 @@ def crear_reserva(request):
         except json.JSONDecodeError as e:
             return Response({'error': f'Error al parsear JSON: {str(e)}'}, status=400)
 
+        # Validar campos requeridos
+        if not all(k in cliente_data for k in ['nombre', 'apellido', 'telefono', 'email']):
+            return Response({'error': 'Faltan campos en cliente'}, status=400)
+
+        email_cliente = cliente_data.get('email', '').strip().lower()
+        if not email_cliente:
+            return Response({'error': 'Email del cliente es requerido'}, status=400)
+
+        # ===== 🔒 VALIDAR LÍMITE DE ENVÍOS =====
+        puede_enviar, envios_hoy, mensaje = ComprobanteLimite.puede_enviar_comprobante(email_cliente)
+        
+        if not puede_enviar:
+            return Response({
+                'error': 'Límite alcanzado',
+                'mensaje': mensaje,
+                'envios_hoy': envios_hoy,
+                'limite_diario': 3,
+                'codigo': 'LIMITE_DIARIO_ALCANZADO'
+            }, status=429)  # 429 = Too Many Requests
+
+        # Validar montos
         try:
             monto_decimal = Decimal(str(monto))
             total_decimal = Decimal(str(reserva_data.get('total', 0)))
@@ -195,9 +221,7 @@ def crear_reserva(request):
         if not all(k in reserva_data for k in ['fecha', 'horario', 'barbero', 'servicios', 'total', 'duracionTotal']):
             return Response({'error': 'Faltan campos en reserva'}, status=400)
 
-        if not all(k in cliente_data for k in ['nombre', 'apellido', 'telefono', 'email']):
-            return Response({'error': 'Faltan campos en cliente'}, status=400)
-
+        # Validar fecha y horario
         try:
             fecha_res = parse_date(reserva_data['fecha'])
             if not fecha_res:
@@ -228,12 +252,23 @@ def crear_reserva(request):
                     'error': f'El horario {hora_inicio_str} ya está ocupado. Por favor selecciona otro horario.'
                 }, status=400)
 
+        # Obtener IP del cliente
+        def get_client_ip(request):
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            if x_forwarded_for:
+                ip = x_forwarded_for.split(',')[0]
+            else:
+                ip = request.META.get('REMOTE_ADDR')
+            return ip
+
+        ip_address = get_client_ip(request)
+
         # Crear reserva
         reserva = Reserva.objects.create(
             nombre_cliente=cliente_data.get('nombre', ''),
             apellido_cliente=cliente_data.get('apellido', ''),
             telefono_cliente=cliente_data.get('telefono', ''),
-            email_cliente=cliente_data.get('email', ''),
+            email_cliente=email_cliente,
             fecha=reserva_data['fecha'],
             horario=reserva_data['horario'],
             barbero_id=reserva_data['barbero']['id'],
@@ -246,6 +281,15 @@ def crear_reserva(request):
             estado='pendiente',
             estado_pago='sin_pagar'
         )
+
+        # ===== 📊 REGISTRAR ENVÍO EN EL LÍMITE =====
+        ComprobanteLimite.registrar_envio(
+            email=email_cliente,
+            ip_address=ip_address,
+            reserva=reserva
+        )
+
+        print(f"✅ Comprobante registrado: {email_cliente} - Envíos hoy: {envios_hoy + 1}/3")
 
         # Enviar email de confirmación
         mensaje = f'''Hola {cliente_data.get("nombre", "")},
@@ -267,7 +311,7 @@ Barberia Clase V'''
         enviar_email_utf8(
             'Reserva Recibida - Barberia Clase V',
             mensaje,
-            cliente_data.get('email', '')
+            email_cliente
         )
 
         serializer = ReservaSerializer(reserva)
@@ -275,16 +319,19 @@ Barberia Clase V'''
             'id': reserva.id,
             'estado': 'pendiente',
             'mensaje': 'Reserva creada exitosamente. La seña se registrará en caja al confirmar.',
-            'data': serializer.data
+            'data': serializer.data,
+            'limite_info': {
+                'envios_hoy': envios_hoy + 1,
+                'limite_diario': 3,
+                'restantes': 2 - envios_hoy
+            }
         }, status=201)
 
     except Exception as e:
         print(f"Error: {type(e).__name__}: {e}")
         import traceback
         traceback.print_exc()
-        return Response({'error': f'Error al crear reserva: {str(e)}'}, status=500)
-
-
+        return Response({'error': f'Error al crear reserva: {str(e)}'}, status=500) 
 # ==========================================
 # CONFIRMAR RESERVA
 # ==========================================

@@ -157,7 +157,7 @@ function Register() {
                         <input
                             type="text"
                             name="username"
-                            placeholder="Nombre de usuario (solo letras)"
+                            placeholder="Nombre de usuario"
                             value={formData.username}
                             onChange={handleChange}
                             required
@@ -185,7 +185,7 @@ function Register() {
                     )}
 
                     {/* Contraseña */}
-                    <div className="input-group">
+                    <div className="input-group" style={{ position: 'relative' }}>
                         <LockClosed24Regular className="input-icon" />
                         <input
                             type={showPassword ? "text" : "password"}
@@ -194,16 +194,25 @@ function Register() {
                             value={formData.password}
                             onChange={handleChange}
                             required
+                            style={{ paddingRight: '45px' }}
                         />
                         <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
                             style={{
+                                position: 'absolute',
+                                right: '12px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
                                 background: 'none',
                                 border: 'none',
                                 cursor: 'pointer',
-                                padding: '0 10px',
-                                color: '#FFD700'
+                                padding: '0',
+                                color: '#888',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                zIndex: 10
                             }}
                         >
                             {showPassword ? <EyeOff24Regular /> : <Eye24Regular />}
@@ -211,7 +220,7 @@ function Register() {
                     </div>
 
                     {/* Confirmar contraseña */}
-                    <div className="input-group">
+                    <div className="input-group" style={{ position: 'relative' }}>
                         <LockClosed24Regular className="input-icon" />
                         <input
                             type={showConfirmPassword ? "text" : "password"}
@@ -220,16 +229,25 @@ function Register() {
                             value={formData.password2}
                             onChange={handleChange}
                             required
+                            style={{ paddingRight: '45px' }}
                         />
                         <button
                             type="button"
                             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                             style={{
+                                position: 'absolute',
+                                right: '12px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
                                 background: 'none',
                                 border: 'none',
                                 cursor: 'pointer',
-                                padding: '0 10px',
-                                color: '#FFD700'
+                                padding: '0',
+                                color: '#888',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                zIndex: 10
                             }}
                         >
                             {showConfirmPassword ? <EyeOff24Regular /> : <Eye24Regular />}
@@ -329,7 +347,7 @@ function Register() {
                             alignItems: 'center',
                             gap: '8px'
                         }}>
-                            {passwordValidations.hasSymbol ? '✓' : '○'} Un símbolo (!@#$%^&*...)
+                            {passwordValidations.hasSymbol ? '✓' : '○'} Un símbolo (!@#$%^&*_)
                         </p>
                     </div>
 

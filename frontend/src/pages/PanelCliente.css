@@ -19,6 +19,7 @@
   height: 100vh;
   left: 0;
   top: 0;
+  z-index: 10;
 }
 
 .sidebar-header {
@@ -705,7 +706,9 @@
   .perfil-acciones {
     flex-direction: column;
   }
-  /* ========================================
+}
+
+/* ========================================
    SECCIÓN DE CONTACTO EN PERFIL
 ======================================== */
 .info-contacto {
@@ -793,4 +796,372 @@
     width: 100%;
   }
 }
+
+/* ========================================
+   ESTILOS PARA TURNOS AFECTADOS
+======================================== */
+
+/* Reserva afectada - borde distintivo */
+.reserva-card.afectada {
+  border: 3px solid #ff6b6b;
+  box-shadow: 0 4px 20px rgba(255, 107, 107, 0.3);
+  position: relative;
+}
+
+.reserva-card.afectada::before {
+  content: '⚠️';
+  position: absolute;
+  top: -15px;
+  left: 20px;
+  background: #ff6b6b;
+  color: white;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.4);
+  z-index: 1;
+}
+
+/* Alerta dentro de la tarjeta */
+.alerta-turno-afectado {
+  background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%);
+  border: 2px solid #ff6b6b;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  animation: slideInAlert 0.4s ease-out;
+}
+
+@keyframes slideInAlert {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.alerta-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.alerta-icon {
+  font-size: 2rem;
+  animation: shake 0.5s ease-in-out infinite;
+}
+
+@keyframes shake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-10deg); }
+  75% { transform: rotate(10deg); }
+}
+
+.alerta-titulo {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #d32f2f;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.alerta-mensaje {
+  font-size: 1rem;
+  color: #c62828;
+  line-height: 1.6;
+  margin: 0 0 0.75rem 0;
+}
+
+.alerta-motivo {
+  font-size: 0.9rem;
+  color: #666;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.alerta-accion-texto {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #333;
+  margin: 1rem 0 0.75rem 0;
+}
+
+.alerta-acciones {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.btn-reprogramar,
+.btn-cancelar-afectado {
+  flex: 1;
+  min-width: 150px;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-reprogramar {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+  box-shadow: 0 3px 12px rgba(76, 175, 80, 0.3);
+}
+
+.btn-reprogramar:hover {
+  background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 16px rgba(76, 175, 80, 0.4);
+}
+
+.btn-cancelar-afectado {
+  background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+  color: white;
+  box-shadow: 0 3px 12px rgba(244, 67, 54, 0.3);
+}
+
+.btn-cancelar-afectado:hover {
+  background: linear-gradient(135deg, #d32f2f 0%, #c62828 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 16px rgba(244, 67, 54, 0.4);
+}
+
+.btn-reprogramar:active,
+.btn-cancelar-afectado:active {
+  transform: translateY(0);
+}
+
+/* Pulso sutil en tarjetas afectadas */
+.reserva-card.afectada {
+  animation: pulseCard 3s ease-in-out infinite;
+}
+
+@keyframes pulseCard {
+  0%, 100% {
+    box-shadow: 0 4px 20px rgba(255, 107, 107, 0.3);
+  }
+  50% {
+    box-shadow: 0 6px 28px rgba(255, 107, 107, 0.5);
+  }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .alerta-turno-afectado {
+    padding: 1rem;
+  }
+
+  .alerta-header {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .alerta-icon {
+    font-size: 1.75rem;
+  }
+
+  .alerta-titulo {
+    font-size: 1rem;
+  }
+
+  .alerta-mensaje {
+    font-size: 0.95rem;
+  }
+
+  .alerta-acciones {
+    flex-direction: column;
+  }
+
+  .btn-reprogramar,
+  .btn-cancelar-afectado {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .reserva-card.afectada::before {
+    top: -12px;
+    left: 15px;
+    font-size: 1rem;
+    padding: 4px 10px;
+  }
+}
+
+/* Estado adicional: cuando hay turnos afectados en la vista */
+.panel-cliente.tiene-afectados .stats-grid {
+  position: relative;
+}
+
+.panel-cliente.tiene-afectados .stats-grid::after {
+  content: '⚠️ Tienes turnos afectados';
+  position: absolute;
+  top: -30px;
+  right: 0;
+  background: #ff6b6b;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  animation: blink 2s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* === MODAL DE CONFIRMACIÓN DE CIERRE DE SESIÓN (ESTILO IMAGEN) === */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85); /* Fondo oscuro estilo imagen */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 99999;
+  animation: fadeIn 0.25s ease-out;
+  backdrop-filter: blur(2px);
+}
+
+.modal-confirm {
+  background: #262626; /* Gris muy oscuro mate */
+  padding: 2.5rem 2rem;
+  border-radius: 24px; /* Bordes muy redondeados */
+  width: 90%;
+  max-width: 380px;
+  text-align: center;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.3s ease-out;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.modal-confirm-icon-warning {
+  width: 80px;
+  height: 80px;
+  background: #fbbf24; /* Amarillo intenso */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem auto;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.warning-icon {
+  color: #000;
+  font-size: 40px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.modal-confirm-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fbbf24;
+  margin-bottom: 0.5rem;
+}
+
+.modal-confirm-message {
+  color: #d4d4d4; /* Gris claro */
+  font-size: 1.1rem;
+  margin-bottom: 2.5rem;
+  font-weight: 400;
+}
+
+.modal-confirm-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Botón Cancelar - Estilo Píldora Gris */
+.btn-cancel-modal {
+  flex: 1;
+  padding: 14px;
+  border: none;
+  background: #525252; /* Gris medio (igual a la imagen) */
+  color: white;
+  border-radius: 50px; /* Redondo completo */
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: transform 0.1s, background 0.2s;
+}
+
+.btn-cancel-modal:hover {
+  background: #606060;
+  transform: scale(1.02);
+}
+
+/* Botón Confirmar - Estilo Píldora Amarilla */
+.btn-confirm-logout-modal {
+  flex: 1;
+  padding: 14px;
+  background: #fbbf24; /* Amarillo */
+  color: black;
+  border: none;
+  border-radius: 50px; /* Redondo completo */
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 1rem;
+  transition: transform 0.1s, background 0.2s;
+}
+
+.btn-confirm-logout-modal:hover {
+  background: #f59e0b;
+  transform: scale(1.02);
+}
+
+.btn-cancel-modal:active,
+.btn-confirm-logout-modal:active {
+  transform: scale(0.98);
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* Responsive para modal */
+@media (max-width: 500px) {
+  .modal-confirm {
+    padding: 2rem 1.5rem;
+    width: 90%;
+  }
+  
+  .modal-confirm-icon-warning {
+    width: 70px;
+    height: 70px;
+  }
+  
+  .warning-icon {
+    font-size: 35px;
+  }
+  
+  .modal-confirm-title {
+    font-size: 1.4rem;
+  }
+  
+  .modal-confirm-actions {
+    gap: 0.8rem;
+  }
 }

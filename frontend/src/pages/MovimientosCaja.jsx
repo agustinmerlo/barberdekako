@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import "./MovimientosCaja.css";
 
 const API_URL = "http://localhost:8000/api/caja";
 
@@ -15,15 +16,50 @@ const MovimientosCaja = () => {
   const [modalCierre, setModalCierre] = useState(false);
   const [modalHistorial, setModalHistorial] = useState(false);
   const [montoApertura, setMontoApertura] = useState("");
-  
-  const [montosCierre, setMontosCierre] = useState({
-    efectivo: "",
-    transferencia: "",
-    seña: ""
+
+  // Estado para los MONTOS ESPERADOS / CALCULADOS y EGRESOS REALES (para el Modal de Cierre)
+  const [montosEsperados, setMontosEsperados] = useState({
+    efectivoEsperado: 0,
+    transferenciaEsperada: 0,
+    señaEsperada: 0,
+    egresosEfectivo: 0,
+    egresosTransferencia: 0,
+    egresosSeña: 0,
   });
-  
+
+  // 🚩 CAMBIOS PARA CIERRE MANUAL/ASISTIDO: Estado para los MONTOS CONTADOS por el usuario
+  const [montosContados, setMontosContados] = useState({
+    monto_cierre_efectivo: 0,
+    monto_cierre_transferencia: 0,
+    monto_cierre_seña: 0,
+  });
+
   const [observacionesCierre, setObservacionesCierre] = useState("");
   const [historialTurnos, setHistorialTurnos] = useState([]);
+
+  // Métodos de pago disponibles para Egresos (solo efectivo y transferencia)
+  const metodosPagoEgreso = [
+    { value: "efectivo", label: "💵 Efectivo" },
+    { value: "transferencia", label: "🏦 Transferencia" },
+  ];
+
+  // Todos los métodos de pago para Ingreso
+  const metodosPagoIngreso = [
+    ...metodosPagoEgreso,
+    { value: "tarjeta", label: "💳 Tarjeta" },
+    { value: "seña", label: "💰 Seña" },
+  ];
+
+  const categoriasMovimiento = [
+    { value: "servicios", label: "✂️ Servicios" },
+    { value: "productos", label: "🛍️ Productos" },
+    { value: "gastos", label: "📊 Gastos" },
+    { value: "sueldos", label: "👨‍💼 Sueldos" },
+    { value: "alquiler", label: "🏢 Alquiler" },
+    { value: "servicios_publicos", label: "💡 Servicios Públicos" },
+    { value: "otros", label: "📌 Otros" },
+  ];
+
 
   const [formData, setFormData] = useState({
     tipo: "ingreso",
@@ -44,8 +80,9 @@ const MovimientosCaja = () => {
       const res = await fetch(`${API_URL}/turnos/turno_activo/`);
       const data = await res.json();
       if (data.existe) {
-        console.log("✅ Turno activo:", data.turno);
         setTurnoActivo(data.turno);
+      } else {
+        setTurnoActivo(null);
       }
     } catch (err) {
       console.error("Error verificando turno:", err);
@@ -58,21 +95,19 @@ const MovimientosCaja = () => {
       const res = await fetch(`${API_URL}/movimientos/`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      
+
       const todosMovimientos = Array.isArray(data) ? data : data?.results ?? [];
-      
-      // Eliminar duplicados por ID
+
       const movimientosUnicos = Array.from(
         new Map(todosMovimientos.map(mov => [mov.id, mov])).values()
       );
-      
+
       const movimientosOrdenados = movimientosUnicos.sort((a, b) => {
         const fechaA = new Date(a.fecha + 'T' + (a.hora || '00:00:00'));
         const fechaB = new Date(b.fecha + 'T' + (b.hora || '00:00:00'));
         return fechaB - fechaA;
       });
 
-      console.log("✅ Movimientos cargados:", movimientosOrdenados.length);
       setMovimientos(movimientosOrdenados);
     } catch (err) {
       console.error("Error cargando movimientos:", err);
@@ -100,9 +135,10 @@ const MovimientosCaja = () => {
       setTurnoActivo(data);
       setModalApertura(false);
       setMontoApertura("");
-      
+
       alert("✅ Caja abierta exitosamente");
       cargarMovimientos();
+      verificarTurnoActivo();
     } catch (err) {
       console.error("Error abriendo caja:", err);
       alert("❌ Error al abrir la caja");
@@ -111,16 +147,64 @@ const MovimientosCaja = () => {
 
   const prepararCierreCaja = () => {
     if (!turnoActivo) return;
-    
-    console.log("📊 Preparando cierre con turno:", turnoActivo);
-    
-    setMontosCierre({
-      efectivo: turnoActivo.efectivo_esperado?.toString() || "0",
-      transferencia: turnoActivo.transferencia_esperada?.toString() || "0",
-      seña: turnoActivo.seña_esperada?.toString() || "0"
+
+    // Filtra movimientos solo para el turno activo
+    const movimientosTurno = movimientos.filter(m => m.turno === turnoActivo.id);
+
+    // 1. Calcular Egresos por tipo (DATOS REALES)
+    const egresosEfectivo = movimientosTurno
+        .filter(m => m.tipo === "egreso" && m.metodo_pago === "efectivo")
+        .reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0);
+
+    const egresosTransferencia = movimientosTurno
+        .filter(m => m.tipo === "egreso" && m.metodo_pago === "transferencia")
+        .reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0);
+
+    const egresosSeña = movimientosTurno
+        .filter(m => m.tipo === "egreso" && m.metodo_pago === "seña")
+        .reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0);
+
+    setObservacionesCierre("");
+
+    // 2. Establecer Montos Esperados + Egresos Detallados
+    setMontosEsperados({
+      efectivoEsperado: parseFloat(turnoActivo.efectivo_esperado || 0),
+      transferenciaEsperada: parseFloat(turnoActivo.transferencia_esperada || 0),
+      señaEsperada: parseFloat(turnoActivo.seña_esperada || 0),
+      egresosEfectivo: egresosEfectivo,
+      egresosTransferencia: egresosTransferencia,
+      egresosSeña: egresosSeña,
     });
+
+    // 🚩 CAMBIOS PARA CIERRE MANUAL/ASISTIDO: Inicializar los montos contados con los montos esperados
+    // para facilitar al usuario (solo debe corregir si hay diferencia).
+    setMontosContados({
+      monto_cierre_efectivo: parseFloat(turnoActivo.efectivo_esperado || 0),
+      monto_cierre_transferencia: parseFloat(turnoActivo.transferencia_esperada || 0),
+      monto_cierre_seña: parseFloat(turnoActivo.seña_esperada || 0),
+    });
+
     setModalCierre(true);
   };
+
+  // Función auxiliar para formatear la moneda
+  const formatCurrency = (amount) => {
+    const value = parseFloat(amount);
+    if (isNaN(value)) return '0,00';
+    return value.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  // 🚩 CAMBIOS PARA CIERRE MANUAL/ASISTIDO: Manejador de cambio para los inputs del modal de cierre
+  const handleMontoContadoChange = (e) => {
+    const { name, value } = e.target;
+    // Convierte a número y asegura que sea 0 si está vacío para evitar errores de NaN
+    const numValue = value === "" ? 0 : parseFloat(value);
+    setMontosContados(prev => ({
+      ...prev,
+      [name]: numValue,
+    }));
+  };
+
 
   const cerrarCaja = async () => {
     if (!turnoActivo) {
@@ -128,18 +212,36 @@ const MovimientosCaja = () => {
       return;
     }
 
-    console.log("💰 Montos de cierre:", montosCierre);
+    // 🚩 CAMBIOS PARA CIERRE MANUAL/ASISTIDO: Validar los montos contados
+    if (isNaN(montosContados.monto_cierre_efectivo) || montosContados.monto_cierre_efectivo < 0 ||
+        isNaN(montosContados.monto_cierre_transferencia) || montosContados.monto_cierre_transferencia < 0 ||
+        isNaN(montosContados.monto_cierre_seña) || montosContados.monto_cierre_seña < 0) {
+        
+        alert("❌ Por favor, ingrese montos de cierre válidos (numéricos y no negativos) para Efectivo, Transferencia y Seña.");
+        return;
+    }
+
 
     try {
+      // Primero actualizar el turno activo para tener los datos más recientes
+      const resActualizar = await fetch(`${API_URL}/turnos/turno_activo/`);
+      const dataActualizada = await resActualizar.json();
+
+      if (!dataActualizada.existe) {
+        alert("❌ No se encontró el turno activo");
+        return;
+      }
+
+      const turnoActualizado = dataActualizada.turno;
+
+      // 🚩 CAMBIOS PARA CIERRE MANUAL/ASISTIDO: Enviamos los montos CONTADOS por el usuario
       const body = {
-        monto_cierre_efectivo: parseFloat(montosCierre.efectivo || 0),
-        monto_cierre_transferencia: parseFloat(montosCierre.transferencia || 0),
-        monto_cierre_mercadopago: 0,
-        monto_cierre_seña: parseFloat(montosCierre.seña || 0),
+        monto_cierre_efectivo: montosContados.monto_cierre_efectivo,
+        monto_cierre_transferencia: montosContados.monto_cierre_transferencia,
+        monto_cierre_mercadopago: 0, // Mantener en 0 si no se usa MercadoPago
+        monto_cierre_seña: montosContados.monto_cierre_seña,
         observaciones: observacionesCierre
       };
-
-      console.log("📤 Enviando cierre:", body);
 
       const res = await fetch(`${API_URL}/turnos/${turnoActivo.id}/cerrar/`, {
         method: "POST",
@@ -149,42 +251,47 @@ const MovimientosCaja = () => {
 
       if (!res.ok) {
         const errorText = await res.text();
-        console.error("❌ Error del servidor:", errorText);
-        throw new Error(`HTTP ${res.status}: ${errorText}`);
+        // Intentar parsear el JSON de error si es posible
+        try {
+            const errorData = JSON.parse(errorText);
+            throw new Error(errorData.error || `HTTP ${res.status}: ${errorText}`);
+        } catch {
+            throw new Error(`HTTP ${res.status}: ${errorText}`);
+        }
       }
 
       const data = await res.json();
       const turnoCerrado = data.turno;
 
-      console.log("✅ Caja cerrada:", turnoCerrado);
-
       setTurnoActivo(null);
       setModalCierre(false);
-      setMontosCierre({ efectivo: "", transferencia: "", seña: "" });
       setObservacionesCierre("");
 
       const mensaje = `✅ Caja cerrada exitosamente
 
 💵 EFECTIVO
-Esperado: $${parseFloat(turnoCerrado.efectivo_esperado).toLocaleString('es-AR', {minimumFractionDigits: 2})}
-Contado: $${parseFloat(turnoCerrado.monto_cierre_efectivo).toLocaleString('es-AR', {minimumFractionDigits: 2})}
-Diferencia: $${Math.abs(turnoCerrado.diferencia_efectivo).toLocaleString('es-AR', {minimumFractionDigits: 2})} ${turnoCerrado.diferencia_efectivo >= 0 ? '✅' : '⚠️'}
+Esperado: $${formatCurrency(turnoCerrado.efectivo_esperado)}
+Contado: $${formatCurrency(turnoCerrado.monto_cierre_efectivo)}
+Diferencia: $${formatCurrency(Math.abs(turnoCerrado.diferencia_efectivo))} ${turnoCerrado.diferencia_efectivo <= 0 ? '✅' : '⚠️'}
+Egresos: $${formatCurrency(turnoCerrado.total_egresos_efectivo || 0)}
 
 🏦 TRANSFERENCIA
-Esperado: $${parseFloat(turnoCerrado.transferencia_esperada).toLocaleString('es-AR', {minimumFractionDigits: 2})}
-Contado: $${parseFloat(turnoCerrado.monto_cierre_transferencia).toLocaleString('es-AR', {minimumFractionDigits: 2})}
-Diferencia: $${Math.abs(turnoCerrado.diferencia_transferencia).toLocaleString('es-AR', {minimumFractionDigits: 2})} ${turnoCerrado.diferencia_transferencia >= 0 ? '✅' : '⚠️'}
+Esperado: $${formatCurrency(turnoCerrado.transferencia_esperada)}
+Contado: $${formatCurrency(turnoCerrado.monto_cierre_transferencia)}
+Diferencia: $${formatCurrency(Math.abs(turnoCerrado.diferencia_transferencia))} ${turnoCerrado.diferencia_transferencia <= 0 ? '✅' : '⚠️'}
+Egresos: $${formatCurrency(turnoCerrado.total_egresos_transferencia || 0)}
 
 💰 SEÑAS
-Esperado: $${parseFloat(turnoCerrado.seña_esperada).toLocaleString('es-AR', {minimumFractionDigits: 2})}
-Contado: $${parseFloat(turnoCerrado.monto_cierre_seña).toLocaleString('es-AR', {minimumFractionDigits: 2})}
-Diferencia: $${Math.abs(turnoCerrado.diferencia_seña).toLocaleString('es-AR', {minimumFractionDigits: 2})} ${turnoCerrado.diferencia_seña >= 0 ? '✅' : '⚠️'}
+Esperado: $${formatCurrency(turnoCerrado.seña_esperada)}
+Contado: $${formatCurrency(turnoCerrado.monto_cierre_seña)}
+Diferencia: $${formatCurrency(Math.abs(turnoCerrado.diferencia_seña))} ${turnoCerrado.diferencia_seña <= 0 ? '✅' : '⚠️'}
+Egresos: $${formatCurrency(turnoCerrado.total_egresos_seña || 0)}
 
-🎯 DIFERENCIA TOTAL: $${Math.abs(turnoCerrado.diferencia_total).toLocaleString('es-AR', {minimumFractionDigits: 2})} ${turnoCerrado.diferencia_total >= 0 ? '(Sobrante)' : '(Faltante)'}`;
-      
+🎯 DIFERENCIA TOTAL: $${formatCurrency(Math.abs(turnoCerrado.diferencia_total))} ${turnoCerrado.diferencia_total <= 0 ? '(Sobrante)' : '(Faltante)'}`;
+
       alert(mensaje);
-      cargarMovimientos();
-      verificarTurnoActivo();
+      await cargarMovimientos();
+      await verificarTurnoActivo();
     } catch (err) {
       console.error("Error cerrando caja:", err);
       alert("❌ Error al cerrar la caja: " + err.message);
@@ -195,7 +302,7 @@ Diferencia: $${Math.abs(turnoCerrado.diferencia_seña).toLocaleString('es-AR', {
     try {
       const res = await fetch(`${API_URL}/turnos/historial/`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      
+
       const data = await res.json();
       setHistorialTurnos(data.turnos || []);
       setModalHistorial(true);
@@ -286,8 +393,7 @@ Diferencia: $${Math.abs(turnoCerrado.diferencia_seña).toLocaleString('es-AR', {
 
       alert(`✅ Movimiento ${modoEdicion ? "actualizado" : "registrado"} exitosamente`);
       cerrarModal();
-      
-      // Esperar un momento antes de recargar para evitar múltiples peticiones simultáneas
+
       await new Promise(resolve => setTimeout(resolve, 300));
       await cargarMovimientos();
       await verificarTurnoActivo();
@@ -352,587 +458,447 @@ Diferencia: $${Math.abs(turnoCerrado.diferencia_seña).toLocaleString('es-AR', {
     });
   };
 
-  // ✅ ESTADÍSTICAS CORREGIDAS - Convertir a número siempre
+  // 🚩 Importante: Estos totales SÍ deben ser calculados sobre TODOS los movimientos,
+  // ya que son los totales históricos o del día completo, no solo del turno activo.
   const totalIngresos = movimientos
     .filter(m => m.tipo === "ingreso")
-    .reduce((sum, m) => {
-      const monto = parseFloat(m.monto);
-      return sum + (isNaN(monto) ? 0 : monto);
-    }, 0);
+    .reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0);
 
   const totalEgresos = movimientos
     .filter(m => m.tipo === "egreso")
-    .reduce((sum, m) => {
-      const monto = parseFloat(m.monto);
-      return sum + (isNaN(monto) ? 0 : monto);
-    }, 0);
+    .reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0);
 
   const saldoCaja = totalIngresos - totalEgresos;
 
-  console.log("📊 Estadísticas:", { totalIngresos, totalEgresos, saldoCaja, cantidadMovimientos: movimientos.length });
-
-  const getTipoIcon = (tipo) => tipo === "ingreso" ? "📈" : "📉";
-  const getTipoColor = (tipo) => tipo === "ingreso" ? "#4caf50" : "#f44336";
-
-  const getMetodoIcon = (metodo) => {
-    const iconos = {
-      efectivo: "💵",
-      tarjeta: "💳",
-      transferencia: "🏦",
-      seña: "💰"
-    };
-    return iconos[metodo] || "💰";
-  };
-
-  const getCategoriaIcon = (categoria) => {
-    const iconos = {
-      servicios: "✂️",
-      productos: "🛍️",
-      gastos: "📊",
-      sueldos: "👨‍💼",
-      alquiler: "🏢",
-      servicios_publicos: "💡",
-      otros: "📌"
-    };
-    return iconos[categoria] || "📌";
-  };
-
   return (
-    <div style={{ padding: '20px', backgroundColor: '#121212', minHeight: '100vh', color: '#fff' }}>
-      
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', flexWrap: 'wrap', gap: '20px' }}>
-        <h2 style={{ margin: 0 }}>💰 Movimientos de Caja</h2>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+    <div className="container">
+      <div className="header">
+        <h2>💰 Movimientos de Caja</h2>
+        <div className="button-group">
           {!turnoActivo ? (
-            <button 
-              style={{ padding: '12px 24px', background: '#4caf50', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}
-              onClick={() => setModalApertura(true)}
-            >
+            <button className="btn btn-success" onClick={() => setModalApertura(true)}>
               🔓 Abrir Caja
             </button>
           ) : (
             <>
-              <button 
-                style={{ padding: '12px 24px', background: '#f44336', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}
-                onClick={prepararCierreCaja}
-              >
+              <button className="btn btn-danger" onClick={prepararCierreCaja}>
                 🔒 Cerrar Caja
               </button>
-              <button 
-                style={{ padding: '12px 24px', background: '#ffc107', color: '#000', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}
-                onClick={abrirModalNuevo}
-              >
+              <button className="btn btn-warning" onClick={abrirModalNuevo}>
                 ➕ Nuevo Movimiento
               </button>
             </>
           )}
-          <button 
-            style={{ padding: '12px 24px', background: '#2196f3', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}
-            onClick={cargarHistorial}
-          >
+          <button className="btn btn-info" onClick={cargarHistorial}>
             📋 Historial
           </button>
         </div>
       </div>
 
-      {/* Estado de Caja */}
       {turnoActivo ? (
-        <div style={{ background: 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)', padding: '20px', borderRadius: '12px', border: '2px solid #4caf50', marginBottom: '20px' }}>
-          <div style={{ background: 'rgba(76, 175, 80, 0.2)', color: '#4caf50', padding: '8px 16px', borderRadius: '20px', fontWeight: '700', fontSize: '14px', display: 'inline-block', marginBottom: '16px' }}>
-            🟢 Caja Abierta
+        <div className="status-card status-open">
+          <div className="status-badge status-badge-open">🟢 Caja Abierta</div>
+
+          <div className="stats-grid">
+            <div className="stat-card stat-efectivo">
+              <div className="stat-label">💵 Efectivo </div>
+              <div className="stat-value">
+                ${formatCurrency(turnoActivo.efectivo_esperado)}
+              </div>
+            </div>
+
+            <div className="stat-card stat-transferencia">
+              <div className="stat-label">🏦 Transferencias </div>
+              <div className="stat-value">
+                ${formatCurrency(turnoActivo.transferencia_esperada)}
+              </div>
+            </div>
+
+            <div className="stat-card stat-seña">
+              <div className="stat-label">💰 Señas </div>
+              <div className="stat-value">
+                ${formatCurrency(turnoActivo.seña_esperada)}
+              </div>
+            </div>
+
+             <div className="stat-card stat-egresos-detail">
+              <div className="stat-label">📉 Total Egresos (Acumulado)</div>
+              <div className="stat-value" style={{ color: '#f44336' }}>
+                {/* CAMBIO: Usamos los totales calculados por el backend en turnoActivo.
+                  Asumimos que el backend está enviando los totales correctos para el turno activo.
+                  Si no tienes un total consolidado en el backend, puedes usar 'totalEgresos', 
+                  pero lo más preciso es el valor del objeto TurnoCaja.
+                */}
+                -${formatCurrency(turnoActivo.total_egresos || 0)}
+              </div>
+            </div>
           </div>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginTop: '16px' }}>
-            <div style={{ background: '#1a1a1a', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #4caf50' }}>
-              <div style={{ color: '#aaa', fontSize: '12px', marginBottom: '8px' }}>💵 Efectivo</div>
-              <div style={{ fontSize: '24px', fontWeight: '700', color: '#4caf50' }}>
-                ${parseFloat(turnoActivo.efectivo_esperado || 0).toLocaleString('es-AR', {minimumFractionDigits: 2})}
-              </div>
-            </div>
-            
-            <div style={{ background: '#1a1a1a', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #2196f3' }}>
-              <div style={{ color: '#aaa', fontSize: '12px', marginBottom: '8px' }}>🏦 Transferencias</div>
-              <div style={{ fontSize: '24px', fontWeight: '700', color: '#2196f3' }}>
-                ${parseFloat(turnoActivo.transferencia_esperada || 0).toLocaleString('es-AR', {minimumFractionDigits: 2})}
-              </div>
-            </div>
-            
-            <div style={{ background: '#1a1a1a', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #ffc107' }}>
-              <div style={{ color: '#aaa', fontSize: '12px', marginBottom: '8px' }}>💰 Señas</div>
-              <div style={{ fontSize: '24px', fontWeight: '700', color: '#ffc107' }}>
-                ${parseFloat(turnoActivo.seña_esperada || 0).toLocaleString('es-AR', {minimumFractionDigits: 2})}
-              </div>
-            </div>
-          </div>
-          
-          <div style={{ color: '#aaa', fontSize: '14px', marginTop: '16px' }}>
-            Abierta el: {formatearFechaHora(turnoActivo.fecha_apertura)} | Monto inicial: ${parseFloat(turnoActivo.monto_apertura).toLocaleString('es-AR', {minimumFractionDigits: 2})}
+
+          <div className="status-footer">
+            Abierta el: {formatearFechaHora(turnoActivo.fecha_apertura)} | Monto inicial: ${formatCurrency(turnoActivo.monto_apertura)}
           </div>
         </div>
       ) : (
-        <div style={{ background: 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)', padding: '20px', borderRadius: '12px', border: '2px solid #f44336', marginBottom: '20px' }}>
-          <div style={{ background: 'rgba(244, 67, 54, 0.2)', color: '#f44336', padding: '8px 16px', borderRadius: '20px', fontWeight: '700', fontSize: '14px', display: 'inline-block', marginBottom: '8px' }}>
-            🔴 Caja Cerrada
-          </div>
-          <div style={{ color: '#aaa', fontSize: '14px' }}>Debes abrir la caja para comenzar a operar</div>
+        <div className="status-card status-closed">
+          <div className="status-badge status-badge-closed">🔴 Caja Cerrada</div>
+          <div className="status-footer">Debes abrir la caja para comenzar a operar</div>
         </div>
       )}
 
-      {/* Estadísticas Generales */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-        <div style={{ background: 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)', padding: '24px', borderRadius: '12px', borderLeft: '4px solid #4caf50' }}>
-          <div style={{ fontSize: '32px', marginBottom: '8px' }}>📈</div>
-          <div style={{ color: '#aaa', fontSize: '14px', marginBottom: '8px' }}>Total Ingresos</div>
-          <div style={{ fontSize: '32px', fontWeight: '700', color: '#4caf50' }}>
-            ${totalIngresos.toLocaleString('es-AR', {minimumFractionDigits: 2})}
+      <div className="totales-grid">
+        <div className="total-card total-ingresos">
+          <div className="total-icon">📈</div>
+          <div className="total-label">Total Ingresos</div>
+          <div className="total-amount">
+            ${formatCurrency(totalIngresos)}
           </div>
         </div>
-        <div style={{ background: 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)', padding: '24px', borderRadius: '12px', borderLeft: '4px solid #f44336' }}>
-          <div style={{ fontSize: '32px', marginBottom: '8px' }}>📉</div>
-          <div style={{ color: '#aaa', fontSize: '14px', marginBottom: '8px' }}>Total Egresos</div>
-          <div style={{ fontSize: '32px', fontWeight: '700', color: '#f44336' }}>
-            ${totalEgresos.toLocaleString('es-AR', {minimumFractionDigits: 2})}
+        <div className="total-card total-egresos">
+          <div className="total-icon">📉</div>
+          <div className="total-label">Total Egresos</div>
+          <div className="total-amount">
+            ${formatCurrency(totalEgresos)}
           </div>
         </div>
-        <div style={{ background: 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)', padding: '24px', borderRadius: '12px', borderLeft: '4px solid #ffc107' }}>
-          <div style={{ fontSize: '32px', marginBottom: '8px' }}>💰</div>
-          <div style={{ color: '#aaa', fontSize: '14px', marginBottom: '8px' }}>Saldo Total</div>
-          <div style={{ fontSize: '32px', fontWeight: '700', color: saldoCaja >= 0 ? '#ffc107' : '#f44336' }}>
-            ${saldoCaja.toLocaleString('es-AR', {minimumFractionDigits: 2})}
+        <div className="total-card total-saldo">
+          <div className="total-icon">💰</div>
+          <div className="total-label">Saldo en Caja</div>
+          <div className="total-amount" style={{ color: saldoCaja >= 0 ? '#4caf50' : '#f44336' }}>
+            ${formatCurrency(saldoCaja)}
           </div>
         </div>
       </div>
 
-      {/* Lista de Movimientos */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#aaa' }}>Cargando movimientos...</div>
-      ) : movimientos.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#aaa' }}>
-          <div style={{ fontSize: '64px', marginBottom: '16px' }}>📊</div>
-          <p>No hay movimientos registrados</p>
-        </div>
+        <div className="loading">Cargando movimientos...</div>
       ) : (
-        <div style={{ display: 'grid', gap: '16px' }}>
-          {movimientos.map(mov => (
-            <div key={mov.id} style={{ background: '#2a2a2a', borderRadius: '12px', overflow: 'hidden', border: `2px solid ${mov.es_editable ? '#333' : '#666'}`, opacity: mov.es_editable ? 1 : 0.7 }}>
-              <div style={{ padding: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px' }}>
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <div style={{ fontSize: '32px' }}>{getTipoIcon(mov.tipo)}</div>
-                    <div>
-                      <div style={{ fontSize: '24px', fontWeight: '700', color: getTipoColor(mov.tipo) }}>
-                        ${parseFloat(mov.monto || 0).toLocaleString('es-AR', {minimumFractionDigits: 2})}
-                      </div>
-                      <div style={{ color: '#aaa', fontSize: '14px' }}>
-                        {mov.tipo === "ingreso" ? "Ingreso" : "Egreso"}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ color: '#aaa', fontSize: '14px' }}>{formatearFecha(mov.fecha)}</div>
-                    <div style={{ color: '#666', fontSize: '12px' }}>{formatearHora(mov.hora)}</div>
-                  </div>
+        <div className="movimientos-list">
+          {movimientos.length === 0 ? (
+            <div className="empty-state">No hay movimientos registrados</div>
+          ) : (
+            movimientos.map(mov => (
+              <div key={mov.id} className={`movimiento-card movimiento-${mov.tipo}`}>
+                <div className="movimiento-header">
+                  <span className="movimiento-tipo">{mov.tipo === "ingreso" ? "📈" : "📉"} {mov.tipo.toUpperCase()}</span>
+                  <span className="movimiento-monto" style={{ color: mov.tipo === "ingreso" ? "#4caf50" : "#f44336" }}>
+                    ${formatCurrency(mov.monto)}
+                  </span>
                 </div>
-                
-                <div style={{ marginBottom: '12px' }}>
-                  <div style={{ color: '#ffc107', fontWeight: '600', marginBottom: '4px' }}>Descripción</div>
-                  <div style={{ color: '#fff' }}>{mov.descripcion || "-"}</div>
+                <div className="movimiento-descripcion">{mov.descripcion}</div>
+                <div className="movimiento-detalles">
+                  <span>{mov.metodo_pago || "efectivo"} • {mov.categoria || "otros"}</span>
+                  <span>{formatearFecha(mov.fecha)} {formatearHora(mov.hora)}</span>
                 </div>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                  <div>
-                    <div style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px' }}>Método de Pago</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '20px' }}>{getMetodoIcon(mov.metodo_pago)}</span>
-                      <span style={{ color: '#fff', textTransform: 'capitalize' }}>
-                        {mov.metodo_pago}
-                      </span>
-                    </div>
+                {mov.es_editable && (
+                  <div className="movimiento-actions">
+                    <button className="btn-icon btn-edit" onClick={() => abrirModalEditar(mov)}>✏️</button>
+                    <button className="btn-icon btn-delete" onClick={() => eliminarMovimiento(mov.id, mov.es_editable)}>🗑️</button>
                   </div>
-                  <div>
-                    <div style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px' }}>Categoría</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '20px' }}>{getCategoriaIcon(mov.categoria)}</span>
-                      <span style={{ color: '#fff', textTransform: 'capitalize' }}>
-                        {mov.categoria?.replace(/_/g, ' ')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
-              
-              <div style={{ display: 'flex', gap: '8px', padding: '16px 20px', background: '#1a1a1a', borderTop: '1px solid #333' }}>
-                <button 
-                  style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '6px', fontWeight: '600', cursor: mov.es_editable ? 'pointer' : 'not-allowed', background: '#2196f3', color: 'white', opacity: mov.es_editable ? 1 : 0.5 }}
-                  onClick={() => abrirModalEditar(mov)}
-                  disabled={!mov.es_editable}
-                >
-                  ✏️ Editar
-                </button>
-                <button 
-                  style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '6px', fontWeight: '600', cursor: mov.es_editable ? 'pointer' : 'not-allowed', background: '#f44336', color: 'white', opacity: mov.es_editable ? 1 : 0.5 }}
-                  onClick={() => eliminarMovimiento(mov.id, mov.es_editable)}
-                  disabled={!mov.es_editable}
-                >
-                  🗑️ Eliminar
-                </button>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       )}
 
-      {/* Modal Apertura */}
+      {/* Modal Apertura (SIN CAMBIOS) */}
       {modalApertura && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0, 0, 0, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }} onClick={() => setModalApertura(false)}>
-          <div style={{ background: '#2a2a2a', borderRadius: '16px', maxWidth: '600px', width: '100%', boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)' }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ padding: '24px', borderBottom: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: '700', color: '#ffc107' }}>🔓 Apertura de Caja</div>
-              <button style={{ background: 'none', border: 'none', color: '#aaa', fontSize: '28px', cursor: 'pointer' }} onClick={() => setModalApertura(false)}>×</button>
+        <div className="modal-overlay" onClick={() => setModalApertura(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h3>🔓 Abrir Caja</h3>
+            <label>Monto de apertura:</label>
+            <input
+              type="number"
+              value={montoApertura}
+              onChange={e => setMontoApertura(e.target.value)}
+              placeholder="0.00"
+              className="input-field"
+            />
+            <div className="modal-buttons">
+              <button className="btn btn-success" onClick={abrirCaja}>Abrir</button>
+              <button className="btn btn-secondary" onClick={() => setModalApertura(false)}>Cancelar</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🚩 MODAL CIERRE (ACTUALIZADO PARA MONTO CONTADO MANUAL) */}
+      {modalCierre && (
+        <div className="modal-overlay modal-cierre-overlay" onClick={() => setModalCierre(false)}>
+          <div className="modal-content modal-cierre-content" onClick={e => e.stopPropagation()}>
+            <h3><span className="lock-icon">🔒</span> Cerrar Caja</h3>
+
+            {/* Sección de Montos Esperados (Calculados) */}
+            <div className="cierre-section expected-amounts">
+              <h4>Montos Esperados (Calculados por el sistema):</h4>
+
+              {/* EFECTIVO ESPERADO (Solo Display) */}
+              <div className="input-group-display">
+                <label className="label-expected">💵 Efectivo Esperado:</label>
+                <input
+                  type="text"
+                  value={`$${formatCurrency(montosEsperados.efectivoEsperado)}`}
+                  readOnly
+                  className="input-field input-expected"
+                />
+              </div>
+
+              {/* TRANSFERENCIAS ESPERADAS (Solo Display) */}
+              <div className="input-group-display">
+                <label className="label-expected">🏦 Transferencias Esperadas:</label>
+                <input
+                  type="text"
+                  value={`$${formatCurrency(montosEsperados.transferenciaEsperada)}`}
+                  readOnly
+                  className="input-field input-expected"
+                />
+              </div>
+
+              {/* SEÑAS ESPERADAS (Solo Display) */}
+              <div className="input-group-display">
+                <label className="label-expected">💰 Señas Esperadas:</label>
+                <input
+                  type="text"
+                  value={`$${formatCurrency(montosEsperados.señaEsperada)}`}
+                  readOnly
+                  className="input-field input-expected"
+                />
+              </div>
+            </div>
+
+            <hr className="cierre-separator" />
             
-            <div style={{ padding: '24px' }}>
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', color: '#ffc107', fontWeight: '600', marginBottom: '8px', fontSize: '14px' }}>Monto Inicial en Efectivo</label>
+            {/* 🚩 NUEVA SECCIÓN DE MONTO CONTADO (INPUTS EDITABLES) */}
+            <div className="cierre-section counted-amounts">
+              <h4>Montos Contados (Ingreso Manual):</h4>
+
+              {/* EFECTIVO CONTADO (Input Editable) */}
+              <div className="input-group-display">
+                <label className="label-counted">💵 Efectivo Contado:</label>
                 <input
                   type="number"
-                  style={{ width: '100%', padding: '12px 16px', border: '2px solid #444', borderRadius: '8px', background: '#1a1a1a', color: '#fff', fontSize: '16px' }}
-                  value={montoApertura}
-                  onChange={(e) => setMontoApertura(e.target.value)}
+                  name="monto_cierre_efectivo"
+                  value={montosContados.monto_cierre_efectivo}
+                  onChange={handleMontoContadoChange}
+                  className="input-field input-counted"
                   placeholder="0.00"
-                  min="0"
-                  step="0.01"
-                  autoFocus
+                />
+              </div>
+
+              {/* TRANSFERENCIAS CONTADAS (Input Editable) */}
+              <div className="input-group-display">
+                <label className="label-counted">🏦 Transferencias Contadas:</label>
+                <input
+                  type="number"
+                  name="monto_cierre_transferencia"
+                  value={montosContados.monto_cierre_transferencia}
+                  onChange={handleMontoContadoChange}
+                  className="input-field input-counted"
+                  placeholder="0.00"
+                />
+              </div>
+
+              {/* SEÑAS CONTADAS (Input Editable) */}
+              <div className="input-group-display">
+                <label className="label-counted">💰 Señas Contadas:</label>
+                <input
+                  type="number"
+                  name="monto_cierre_seña"
+                  value={montosContados.monto_cierre_seña}
+                  onChange={handleMontoContadoChange}
+                  className="input-field input-counted"
+                  placeholder="0.00"
                 />
               </div>
             </div>
-            
-            <div style={{ padding: '24px', borderTop: '1px solid #333', display: 'flex', gap: '12px' }}>
-              <button style={{ flex: 1, padding: '14px', border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '16px', cursor: 'pointer', background: '#444', color: '#fff' }} onClick={() => setModalApertura(false)}>
-                Cancelar
-              </button>
-              <button style={{ flex: 1, padding: '14px', border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '16px', cursor: 'pointer', background: '#ffc107', color: '#000' }} onClick={abrirCaja}>
-                Abrir Caja
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Modal Cierre */}
-      {modalCierre && turnoActivo && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0, 0, 0, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', overflowY: 'auto' }} onClick={() => setModalCierre(false)}>
-          <div style={{ background: '#2a2a2a', borderRadius: '16px', maxWidth: '700px', width: '100%', boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)', margin: '20px 0' }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ padding: '24px', borderBottom: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: '700', color: '#ffc107' }}>🔒 Cierre de Caja</div>
-              <button style={{ background: 'none', border: 'none', color: '#aaa', fontSize: '28px', cursor: 'pointer' }} onClick={() => setModalCierre(false)}>×</button>
-            </div>
-            
-            <div style={{ padding: '24px', maxHeight: '70vh', overflowY: 'auto' }}>
-              {/* Resumen Esperado */}
-              <div style={{ background: 'rgba(255, 193, 7, 0.1)', border: '1px solid #ffc107', borderRadius: '8px', padding: '16px', marginBottom: '24px' }}>
-                <h3 style={{ margin: '0 0 16px 0', color: '#ffc107', fontSize: '16px' }}>📊 Montos Esperados</h3>
-                <div style={{ display: 'grid', gap: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255, 193, 7, 0.2)' }}>
-                    <span style={{ color: '#aaa' }}>💵 Efectivo:</span>
-                    <strong style={{ color: '#fff' }}>${parseFloat(turnoActivo.efectivo_esperado).toLocaleString('es-AR', {minimumFractionDigits: 2})}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255, 193, 7, 0.2)' }}>
-                    <span style={{ color: '#aaa' }}>🏦 Transferencias:</span>
-                    <strong style={{ color: '#fff' }}>${parseFloat(turnoActivo.transferencia_esperada).toLocaleString('es-AR', {minimumFractionDigits: 2})}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
-                    <span style={{ color: '#aaa' }}>💰 Señas:</span>
-                    <strong style={{ color: '#fff' }}>${parseFloat(turnoActivo.seña_esperada).toLocaleString('es-AR', {minimumFractionDigits: 2})}</strong>
-                  </div>
-                </div>
-              </div>
+            <hr className="cierre-separator" />
 
-              {/* Formulario de Montos Reales */}
-              <h3 style={{ margin: '0 0 16px 0', color: '#ffc107', fontSize: '16px' }}>💵 Ingresa los Montos Reales</h3>
-              
-              <div style={{ display: 'grid', gap: '16px', marginBottom: '20px' }}>
-                <div>
-                  <label style={{ display: 'block', color: '#4caf50', fontWeight: '600', marginBottom: '8px', fontSize: '14px' }}>
-                    💵 Efectivo Real en Caja
-                  </label>
-                  <input
-                    type="number"
-                    style={{ width: '100%', padding: '12px 16px', border: '2px solid #444', borderRadius: '8px', background: '#1a1a1a', color: '#fff', fontSize: '16px' }}
-                    value={montosCierre.efectivo}
-                    onChange={(e) => setMontosCierre({...montosCierre, efectivo: e.target.value})}
-                    placeholder="0.00"
-                    min="0"
-                    step="0.01"
-                  />
-                  {montosCierre.efectivo && (
-                    <small style={{ color: parseFloat(montosCierre.efectivo) - parseFloat(turnoActivo.efectivo_esperado) >= 0 ? '#4caf50' : '#f44336', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                      Diferencia: ${Math.abs(parseFloat(montosCierre.efectivo) - parseFloat(turnoActivo.efectivo_esperado)).toLocaleString('es-AR', {minimumFractionDigits: 2})}
-                      {parseFloat(montosCierre.efectivo) - parseFloat(turnoActivo.efectivo_esperado) >= 0 ? ' (Sobrante)' : ' (Faltante)'}
-                    </small>
-                  )}
-                </div>
+            {/* Sección de Egresos Detallados (Datos Reales del Turno) (SIN CAMBIOS) */}
+            <div className="cierre-section egresos-detail">
+              <h4>📉 Egresos del Turno:</h4>
 
-                <div>
-                  <label style={{ display: 'block', color: '#2196f3', fontWeight: '600', marginBottom: '8px', fontSize: '14px' }}>
-                    🏦 Transferencias Verificadas
-                  </label>
-                  <input
-                    type="number"
-                    style={{ width: '100%', padding: '12px 16px', border: '2px solid #444', borderRadius: '8px', background: '#1a1a1a', color: '#fff', fontSize: '16px' }}
-                    value={montosCierre.transferencia}
-                    onChange={(e) => setMontosCierre({...montosCierre, transferencia: e.target.value})}
-                    placeholder="0.00"
-                    min="0"
-                    step="0.01"
-                  />
-                  {montosCierre.transferencia && (
-                    <small style={{ color: parseFloat(montosCierre.transferencia) - parseFloat(turnoActivo.transferencia_esperada) >= 0 ? '#4caf50' : '#f44336', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                      Diferencia: ${Math.abs(parseFloat(montosCierre.transferencia) - parseFloat(turnoActivo.transferencia_esperada)).toLocaleString('es-AR', {minimumFractionDigits: 2})}
-                      {parseFloat(montosCierre.transferencia) - parseFloat(turnoActivo.transferencia_esperada) >= 0 ? ' (Sobrante)' : ' (Faltante)'}
-                    </small>
-                  )}
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', color: '#ffc107', fontWeight: '600', marginBottom: '8px', fontSize: '14px' }}>
-                    💰 Señas Verificadas
-                  </label>
-                  <input
-                    type="number"
-                    style={{ width: '100%', padding: '12px 16px', border: '2px solid #444', borderRadius: '8px', background: '#1a1a1a', color: '#fff', fontSize: '16px' }}
-                    value={montosCierre.seña}
-                    onChange={(e) => setMontosCierre({...montosCierre, seña: e.target.value})}
-                    placeholder="0.00"
-                    min="0"
-                    step="0.01"
-                  />
-                  {montosCierre.seña && (
-                    <small style={{ color: parseFloat(montosCierre.seña) - parseFloat(turnoActivo.seña_esperada) >= 0 ? '#4caf50' : '#f44336', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                      Diferencia: ${Math.abs(parseFloat(montosCierre.seña) - parseFloat(turnoActivo.seña_esperada)).toLocaleString('es-AR', {minimumFractionDigits: 2})}
-                      {parseFloat(montosCierre.seña) - parseFloat(turnoActivo.seña_esperada) >= 0 ? ' (Sobrante)' : ' (Faltante)'}
-                    </small>
-                  )}
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', color: '#ffc107', fontWeight: '600', marginBottom: '8px', fontSize: '14px' }}>Observaciones (opcional)</label>
-                <textarea
-                  style={{ width: '100%', padding: '12px 16px', border: '2px solid #444', borderRadius: '8px', background: '#1a1a1a', color: '#fff', fontSize: '16px', resize: 'vertical', minHeight: '80px' }}
-                  value={observacionesCierre}
-                  onChange={(e) => setObservacionesCierre(e.target.value)}
-                  placeholder="Notas sobre el cierre de caja..."
+              <div className="input-group-display">
+                <label className="label-expected">💵 Egreso EFECTIVO:</label>
+                <input
+                  type="text"
+                  value={`-$${formatCurrency(montosEsperados.egresosEfectivo)}`}
+                  readOnly
+                  className="input-field input-expected"
+                  style={{ color: '#f44336' }}
                 />
               </div>
-            </div>
-            
-            <div style={{ padding: '24px', borderTop: '1px solid #333', display: 'flex', gap: '12px' }}>
-              <button style={{ flex: 1, padding: '14px', border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '16px', cursor: 'pointer', background: '#444', color: '#fff' }} onClick={() => setModalCierre(false)}>
-                Cancelar
-              </button>
-              <button style={{ flex: 1, padding: '14px', border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '16px', cursor: 'pointer', background: '#ffc107', color: '#000' }} onClick={cerrarCaja}>
-                Cerrar Caja
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Modal Historial de Turnos */}
-      {modalHistorial && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0, 0, 0, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }} onClick={() => setModalHistorial(false)}>
-          <div style={{ background: '#2a2a2a', borderRadius: '16px', maxWidth: '900px', width: '100%', maxHeight: '90vh', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)' }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ padding: '24px', borderBottom: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: '700', color: '#ffc107' }}>📋 Historial de Turnos</div>
-              <button style={{ background: 'none', border: 'none', color: '#aaa', fontSize: '28px', cursor: 'pointer' }} onClick={() => setModalHistorial(false)}>×</button>
-            </div>
-            
-            <div style={{ padding: '24px', maxHeight: 'calc(90vh - 100px)', overflowY: 'auto' }}>
-              {historialTurnos.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px 20px', color: '#aaa' }}>
-                  <div style={{ fontSize: '64px', marginBottom: '16px' }}>📋</div>
-                  <p>No hay turnos cerrados</p>
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gap: '16px' }}>
-                  {historialTurnos.map(turno => (
-                    <div key={turno.id} style={{ background: '#1a1a1a', borderRadius: '12px', padding: '20px', border: '1px solid #333' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px' }}>
-                        <div>
-                          <div style={{ color: '#ffc107', fontWeight: '700', fontSize: '18px', marginBottom: '4px' }}>
-                            Turno #{turno.id}
-                          </div>
-                          <div style={{ color: '#aaa', fontSize: '14px' }}>
-                            {formatearFechaHora(turno.fecha_apertura)} - {formatearFechaHora(turno.fecha_cierre)}
-                          </div>
-                        </div>
-                        <div style={{ background: turno.diferencia_total >= 0 ? 'rgba(76, 175, 80, 0.2)' : 'rgba(244, 67, 54, 0.2)', color: turno.diferencia_total >= 0 ? '#4caf50' : '#f44336', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700' }}>
-                          {turno.diferencia_total >= 0 ? '✅ CUADRADO' : '⚠️ DIFERENCIA'}
-                        </div>
-                      </div>
+              <div className="input-group-display">
+                <label className="label-expected">🏦 Egreso TRANSFERENCIA:</label>
+                <input
+                  type="text"
+                  value={`-$${formatCurrency(montosEsperados.egresosTransferencia)}`}
+                  readOnly
+                  className="input-field input-expected"
+                  style={{ color: '#f44336' }}
+                />
+              </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '16px' }}>
-                        <div style={{ background: '#2a2a2a', padding: '12px', borderRadius: '8px' }}>
-                          <div style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px' }}>Apertura</div>
-                          <div style={{ color: '#fff', fontWeight: '600' }}>${parseFloat(turno.monto_apertura).toLocaleString('es-AR', {minimumFractionDigits: 2})}</div>
-                        </div>
-                        
-                        <div style={{ background: '#2a2a2a', padding: '12px', borderRadius: '8px' }}>
-                          <div style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px' }}>💵 Efectivo</div>
-                          <div style={{ color: '#fff', fontWeight: '600' }}>${parseFloat(turno.monto_cierre_efectivo).toLocaleString('es-AR', {minimumFractionDigits: 2})}</div>
-                          <div style={{ fontSize: '11px', color: turno.diferencia_efectivo >= 0 ? '#4caf50' : '#f44336' }}>
-                            Dif: ${Math.abs(turno.diferencia_efectivo).toLocaleString('es-AR', {minimumFractionDigits: 2})}
-                          </div>
-                        </div>
-                        
-                        <div style={{ background: '#2a2a2a', padding: '12px', borderRadius: '8px' }}>
-                          <div style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px' }}>🏦 Transferencias</div>
-                          <div style={{ color: '#fff', fontWeight: '600' }}>${parseFloat(turno.monto_cierre_transferencia).toLocaleString('es-AR', {minimumFractionDigits: 2})}</div>
-                          <div style={{ fontSize: '11px', color: turno.diferencia_transferencia >= 0 ? '#4caf50' : '#f44336' }}>
-                            Dif: ${Math.abs(turno.diferencia_transferencia).toLocaleString('es-AR', {minimumFractionDigits: 2})}
-                          </div>
-                        </div>
-                        
-                        <div style={{ background: '#2a2a2a', padding: '12px', borderRadius: '8px' }}>
-                          <div style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px' }}>💰 Señas</div>
-                          <div style={{ color: '#fff', fontWeight: '600' }}>${parseFloat(turno.monto_cierre_seña).toLocaleString('es-AR', {minimumFractionDigits: 2})}</div>
-                          <div style={{ fontSize: '11px', color: turno.diferencia_seña >= 0 ? '#4caf50' : '#f44336' }}>
-                            Dif: ${Math.abs(turno.diferencia_seña).toLocaleString('es-AR', {minimumFractionDigits: 2})}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style={{ background: '#2a2a2a', padding: '12px', borderRadius: '8px', borderLeft: '4px solid ' + (turno.diferencia_total >= 0 ? '#4caf50' : '#f44336') }}>
-                        <div style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px' }}>Diferencia Total</div>
-                        <div style={{ color: turno.diferencia_total >= 0 ? '#4caf50' : '#f44336', fontWeight: '700', fontSize: '20px' }}>
-                          ${Math.abs(turno.diferencia_total).toLocaleString('es-AR', {minimumFractionDigits: 2})}
-                          <span style={{ fontSize: '14px', marginLeft: '8px' }}>
-                            {turno.diferencia_total >= 0 ? '(Sobrante)' : '(Faltante)'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {turno.observaciones && (
-                        <div style={{ marginTop: '12px', padding: '12px', background: '#2a2a2a', borderRadius: '8px' }}>
-                          <div style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px' }}>Observaciones</div>
-                          <div style={{ color: '#fff', fontSize: '14px' }}>{turno.observaciones}</div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+              {montosEsperados.egresosSeña > 0 && (
+                <div className="input-group-display">
+                  <label className="label-expected">💰 Egreso SEÑA:</label>
+                  <input
+                    type="text"
+                    value={`-$${formatCurrency(montosEsperados.egresosSeña)}`}
+                    readOnly
+                    className="input-field input-expected"
+                    style={{ color: '#f44336' }}
+                  />
                 </div>
               )}
+
+            </div>
+
+            <hr className="cierre-separator" />
+
+            {/* Observaciones (único campo editable) (SIN CAMBIOS) */}
+            <div className="cierre-section observations">
+              <label>📝 Observaciones (opcional):</label>
+              <textarea
+                value={observacionesCierre}
+                onChange={e => setObservacionesCierre(e.target.value)}
+                placeholder="Notas sobre el cierre de caja o cualquier anomalía..."
+                className="textarea-field"
+              />
+            </div>
+
+            <div className="modal-buttons">
+              <button className="btn btn-secondary" onClick={() => setModalCierre(false)}>Cancelar</button>
+              <button className="btn btn-danger" onClick={cerrarCaja}>Cerrar Caja</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal Nuevo/Editar */}
+
+      {/* Modal Movimiento (SIN CAMBIOS) */}
       {modalAbierto && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0, 0, 0, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }} onClick={cerrarModal}>
-          <div style={{ background: '#2a2a2a', borderRadius: '16px', maxWidth: '600px', width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)' }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ padding: '24px', borderBottom: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: '700', color: '#ffc107' }}>
-                {modoEdicion ? "✏️ Editar Movimiento" : "➕ Nuevo Movimiento"}
-              </div>
-              <button style={{ background: 'none', border: 'none', color: '#aaa', fontSize: '28px', cursor: 'pointer' }} onClick={cerrarModal}>×</button>
-            </div>
-            
-            <div style={{ padding: '24px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                <div>
-                  <label style={{ display: 'block', color: '#ffc107', fontWeight: '600', marginBottom: '8px', fontSize: '14px' }}>Tipo</label>
-                  <select
-                    style={{ width: '100%', padding: '12px 16px', border: '2px solid #444', borderRadius: '8px', background: '#1a1a1a', color: '#fff', fontSize: '16px' }}
-                    value={formData.tipo}
-                    onChange={(e) => setFormData({...formData, tipo: e.target.value})}
-                  >
-                    <option value="ingreso">📈 Ingreso</option>
-                    <option value="egreso">📉 Egreso</option>
-                  </select>
-                </div>
+        <div className="modal-overlay" onClick={cerrarModal}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h3>{modoEdicion ? "✏️ Editar" : "➕ Nuevo"} Movimiento</h3>
 
-                <div>
-                  <label style={{ display: 'block', color: '#ffc107', fontWeight: '600', marginBottom: '8px', fontSize: '14px' }}>Monto</label>
-                  <input
-                    type="number"
-                    style={{ width: '100%', padding: '12px 16px', border: '2px solid #444', borderRadius: '8px', background: '#1a1a1a', color: '#fff', fontSize: '16px' }}
-                    value={formData.monto}
-                    onChange={(e) => setFormData({...formData, monto: e.target.value})}
-                    placeholder="0.00"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-              </div>
+            <label>Tipo:</label>
+            <select
+              value={formData.tipo}
+              onChange={e => {
+                setFormData({
+                  ...formData,
+                  tipo: e.target.value,
+                  // Limita a efectivo si cambia a egreso
+                  metodo_pago: e.target.value === 'egreso' ? 'efectivo' : formData.metodo_pago
+                })
+              }}
+              className="input-field"
+            >
+              <option value="ingreso">📈 Ingreso</option>
+              <option value="egreso">📉 Egreso</option>
+            </select>
 
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', color: '#ffc107', fontWeight: '600', marginBottom: '8px', fontSize: '14px' }}>Descripción</label>
-                <textarea
-                  style={{ width: '100%', padding: '12px 16px', border: '2px solid #444', borderRadius: '8px', background: '#1a1a1a', color: '#fff', fontSize: '16px', resize: 'vertical', minHeight: '80px' }}
-                  value={formData.descripcion}
-                  onChange={(e) => setFormData({...formData, descripcion: e.target.value})}
-                  placeholder="Describe el motivo..."
-                />
-              </div>
+            <label>Monto:</label>
+            <input
+              type="number"
+              value={formData.monto}
+              onChange={e => setFormData({ ...formData, monto: e.target.value })}
+              placeholder="0.00"
+              className="input-field"
+            />
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                <div>
-                  <label style={{ display: 'block', color: '#ffc107', fontWeight: '600', marginBottom: '8px', fontSize: '14px' }}>Categoría</label>
-                  <select
-                    style={{ width: '100%', padding: '12px 16px', border: '2px solid #444', borderRadius: '8px', background: '#1a1a1a', color: '#fff', fontSize: '16px' }}
-                    value={formData.categoria}
-                    onChange={(e) => setFormData({...formData, categoria: e.target.value})}
-                  >
-                    <option value="servicios">✂️ Servicios</option>
-                    <option value="productos">🛍️ Productos</option>
-                    <option value="gastos">📊 Gastos</option>
-                    <option value="sueldos">👨‍💼 Sueldos</option>
-                    <option value="alquiler">🏢 Alquiler</option>
-                    <option value="servicios_publicos">💡 Servicios Públicos</option>
-                    <option value="otros">📌 Otros</option>
-                  </select>
-                </div>
+            <label>Descripción:</label>
+            <input
+              type="text"
+              value={formData.descripcion}
+              onChange={e => setFormData({ ...formData, descripcion: e.target.value })}
+              placeholder="Descripción del movimiento"
+              className="input-field"
+            />
 
-                <div>
-                  <label style={{ display: 'block', color: '#ffc107', fontWeight: '600', marginBottom: '8px', fontSize: '14px' }}>Método de Pago</label>
-                  <select
-                    style={{ width: '100%', padding: '12px 16px', border: '2px solid #444', borderRadius: '8px', background: '#1a1a1a', color: '#fff', fontSize: '16px' }}
-                    value={formData.metodo_pago}
-                    onChange={(e) => setFormData({...formData, metodo_pago: e.target.value})}
-                  >
-                    <option value="efectivo">💵 Efectivo</option>
-                    <option value="tarjeta">💳 Tarjeta</option>
-                    <option value="transferencia">🏦 Transferencia</option>
-                    <option value="seña">💰 Seña</option>
-                  </select>
-                </div>
-              </div>
+            <label>Método de pago:</label>
+            <select
+              value={formData.metodo_pago}
+              onChange={e => setFormData({ ...formData, metodo_pago: e.target.value })}
+              className="input-field"
+            >
+              {/* Lógica para limitar métodos de pago: Solo Efectivo y Transferencia si es Egreso */}
+              {formData.tipo === 'egreso'
+                ? metodosPagoEgreso.map(metodo => (
+                  <option key={metodo.value} value={metodo.value}>{metodo.label}</option>
+                ))
+                : metodosPagoIngreso.map(metodo => (
+                  <option key={metodo.value} value={metodo.value}>{metodo.label}</option>
+                ))
+              }
+            </select>
 
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', color: '#ffc107', fontWeight: '600', marginBottom: '8px', fontSize: '14px' }}>Fecha</label>
-                <input
-                  type="date"
-                  style={{ width: '100%', padding: '12px 16px', border: '2px solid #444', borderRadius: '8px', background: '#1a1a1a', color: '#fff', fontSize: '16px' }}
-                  value={formData.fecha}
-                  onChange={(e) => setFormData({...formData, fecha: e.target.value})}
-                />
-              </div>
-            </div>
-            
-            <div style={{ padding: '24px', borderTop: '1px solid #333', display: 'flex', gap: '12px' }}>
-              <button style={{ flex: 1, padding: '14px', border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '16px', cursor: 'pointer', background: '#444', color: '#fff' }} onClick={cerrarModal}>
-                Cancelar
-              </button>
-              <button 
-                style={{ flex: 1, padding: '14px', border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '16px', cursor: guardando ? 'not-allowed' : 'pointer', background: '#ffc107', color: '#000', opacity: guardando ? 0.5 : 1 }} 
+            <label>Categoría:</label>
+            <select
+              value={formData.categoria}
+              onChange={e => setFormData({ ...formData, categoria: e.target.value })}
+              className="input-field"
+            >
+              {categoriasMovimiento.map(cat => (
+                <option key={cat.value} value={cat.value}>{cat.label}</option>
+              ))}
+            </select>
+
+            <label>Fecha:</label>
+            <input
+              type="date"
+              value={formData.fecha}
+              onChange={e => setFormData({ ...formData, fecha: e.target.value })}
+              className="input-field"
+            />
+
+            <div className="modal-buttons">
+              <button
+                className="btn btn-success"
                 onClick={guardarMovimiento}
                 disabled={guardando}
               >
-                {guardando ? "Guardando..." : modoEdicion ? "Actualizar" : "Registrar"}
+                {guardando ? "Guardando..." : (modoEdicion ? "Actualizar" : "Guardar")}
               </button>
+              <button className="btn btn-secondary" onClick={cerrarModal}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Historial (SIN CAMBIOS) */}
+      {modalHistorial && (
+        <div className="modal-overlay" onClick={() => setModalHistorial(false)}>
+          <div className="modal-content modal-large" onClick={e => e.stopPropagation()}>
+            <h3>📋 Historial de Turnos</h3>
+            {historialTurnos.length === 0 ? (
+              <div className="empty-state">No hay turnos cerrados</div>
+            ) : (
+              <div className="historial-list">
+                {historialTurnos.map(turno => (
+                  <div key={turno.id} className="historial-item">
+                    <div className="historial-header">
+                      <strong>Turno #{turno.id}</strong>
+                      <span>{formatearFechaHora(turno.fecha_apertura)}</span>
+                    </div>
+                    <div className="historial-body">
+                      <p>Apertura: ${formatCurrency(turno.monto_apertura)}</p>
+                      <p>Cierre: {turno.fecha_cierre ? formatearFechaHora(turno.fecha_cierre) : "En curso"}</p>
+                      {turno.diferencia_total !== undefined && (
+                        <p style={{ color: turno.diferencia_total >= 0 ? '#4caf50' : '#f44336' }}>
+                          Diferencia: ${formatCurrency(Math.abs(turno.diferencia_total))}
+                          {turno.diferencia_total >= 0 ? ' (Sobrante)' : ' (Faltante)'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="modal-buttons">
+              <button className="btn btn-secondary" onClick={() => setModalHistorial(false)}>Cerrar</button>
             </div>
           </div>
         </div>

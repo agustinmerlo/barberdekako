@@ -2,6 +2,7 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from django.db.models import Sum, Q 
 from decimal import Decimal
 
 User = get_user_model()
@@ -58,9 +59,15 @@ class TurnoCaja(models.Model):
     diferencia_seña = models.DecimalField(decimal_places=2, default=0, max_digits=10)
     diferencia_total = models.DecimalField(decimal_places=2, default=0, max_digits=10)
     
-    # ✅ TOTALES GENERALES (para compatibilidad)
+    # ✅ TOTALES DE INGRESOS Y EGRESOS POR MÉTODO
     total_ingresos_efectivo = models.DecimalField(decimal_places=2, default=0, max_digits=10)
     total_egresos_efectivo = models.DecimalField(decimal_places=2, default=0, max_digits=10)
+    total_ingresos_transferencia = models.DecimalField(decimal_places=2, default=0, max_digits=10)
+    total_egresos_transferencia = models.DecimalField(decimal_places=2, default=0, max_digits=10)
+    total_ingresos_mercadopago = models.DecimalField(decimal_places=2, default=0, max_digits=10)
+    total_egresos_mercadopago = models.DecimalField(decimal_places=2, default=0, max_digits=10)
+    total_ingresos_seña = models.DecimalField(decimal_places=2, default=0, max_digits=10)
+    total_egresos_seña = models.DecimalField(decimal_places=2, default=0, max_digits=10)
     
     # Metadata
     fecha_creacion = models.DateTimeField(auto_now_add=True)
@@ -76,8 +83,7 @@ class TurnoCaja(models.Model):
         return f"Turno {self.id} - {fecha} ({self.estado})"
     
     def calcular_totales(self):
-        """Calcula los totales del turno por TODOS los métodos de pago"""
-        from django.db.models import Sum, Q
+        """Calcula los totales del turno por TODOS los métodos de pago y GUARDA el objeto"""
         
         movimientos = self.movimientos_turno.all()
         
@@ -99,9 +105,11 @@ class TurnoCaja(models.Model):
             ingresos=Sum('monto', filter=Q(tipo='ingreso')),
             egresos=Sum('monto', filter=Q(tipo='egreso'))
         )
+        self.total_ingresos_transferencia = transferencia_mov['ingresos'] or Decimal('0.00')
+        self.total_egresos_transferencia = transferencia_mov['egresos'] or Decimal('0.00')
         self.transferencia_esperada = (
-            (transferencia_mov['ingresos'] or Decimal('0.00')) - 
-            (transferencia_mov['egresos'] or Decimal('0.00'))
+            self.total_ingresos_transferencia - 
+            self.total_egresos_transferencia
         )
         
         # ✅ MERCADO PAGO
@@ -109,9 +117,11 @@ class TurnoCaja(models.Model):
             ingresos=Sum('monto', filter=Q(tipo='ingreso')),
             egresos=Sum('monto', filter=Q(tipo='egreso'))
         )
+        self.total_ingresos_mercadopago = mercadopago_mov['ingresos'] or Decimal('0.00')
+        self.total_egresos_mercadopago = mercadopago_mov['egresos'] or Decimal('0.00')
         self.mercadopago_esperado = (
-            (mercadopago_mov['ingresos'] or Decimal('0.00')) - 
-            (mercadopago_mov['egresos'] or Decimal('0.00'))
+            self.total_ingresos_mercadopago - 
+            self.total_egresos_mercadopago
         )
         
         # ✅ SEÑAS
@@ -119,29 +129,53 @@ class TurnoCaja(models.Model):
             ingresos=Sum('monto', filter=Q(tipo='ingreso')),
             egresos=Sum('monto', filter=Q(tipo='egreso'))
         )
+        self.total_ingresos_seña = seña_mov['ingresos'] or Decimal('0.00')
+        self.total_egresos_seña = seña_mov['egresos'] or Decimal('0.00')
         self.seña_esperada = (
-            (seña_mov['ingresos'] or Decimal('0.00')) - 
-            (seña_mov['egresos'] or Decimal('0.00'))
+            self.total_ingresos_seña - 
+            self.total_egresos_seña
         )
         
-        self.save()
+        # Guardar solo los campos que cambiaron para optimizar la DB
+        update_fields_list = [
+            'total_ingresos_efectivo', 'total_egresos_efectivo', 'efectivo_esperado',
+            'total_ingresos_transferencia', 'total_egresos_transferencia', 'transferencia_esperada',
+            'total_ingresos_mercadopago', 'total_egresos_mercadopago', 'mercadopago_esperado',
+            'total_ingresos_seña', 'total_egresos_seña', 'seña_esperada',
+            'fecha_actualizacion'
+        ]
+        self.save(update_fields=update_fields_list)
     
+    # Función auxiliar para manejar la conversión a Decimal de forma segura
+    def _get_decimal_from_dict(self, data, key):
+        """Obtiene un valor seguro de Decimal, asumiendo '0.00' como default"""
+        value = data.get(key, Decimal('0.00')) 
+        # Convertir a str antes de Decimal() para manejar correctamente inputs como 0 (int)
+        return Decimal(str(value)) 
+
     def cerrar_turno(self, montos_cierre, observaciones='', usuario=None):
-        """Cierra el turno con los montos reales de TODOS los métodos"""
+        """
+        Cierra el turno con los montos reales de TODOS los métodos.
+        
+        CORRECCIÓN CRÍTICA: Se cambia el cálculo de la diferencia a:
+        Diferencia = Esperado - Real.
+        - Resultado POSITIVO = Faltante (Esperado > Real)
+        - Resultado NEGATIVO = Sobrante (Real > Esperado)
+        """
         if self.estado == 'cerrado':
             raise ValueError("El turno ya está cerrado")
         
-        # Guardar montos reales
-        self.monto_cierre_efectivo = Decimal(str(montos_cierre.get('efectivo', 0)))
-        self.monto_cierre_transferencia = Decimal(str(montos_cierre.get('transferencia', 0)))
-        self.monto_cierre_mercadopago = Decimal(str(montos_cierre.get('mercadopago', 0)))
-        self.monto_cierre_seña = Decimal(str(montos_cierre.get('seña', 0)))
+        # Guardar montos reales de forma segura
+        self.monto_cierre_efectivo = self._get_decimal_from_dict(montos_cierre, 'efectivo')
+        self.monto_cierre_transferencia = self._get_decimal_from_dict(montos_cierre, 'transferencia')
+        self.monto_cierre_mercadopago = self._get_decimal_from_dict(montos_cierre, 'mercadopago')
+        self.monto_cierre_seña = self._get_decimal_from_dict(montos_cierre, 'seña')
         
-        # Calcular diferencias
-        self.diferencia_efectivo = self.monto_cierre_efectivo - self.efectivo_esperado
-        self.diferencia_transferencia = self.monto_cierre_transferencia - self.transferencia_esperada
-        self.diferencia_mercadopago = self.monto_cierre_mercadopago - self.mercadopago_esperado
-        self.diferencia_seña = self.monto_cierre_seña - self.seña_esperada
+        # Calcular diferencias: Esperado - Real (Positivo = Faltante)
+        self.diferencia_efectivo = self.efectivo_esperado - self.monto_cierre_efectivo
+        self.diferencia_transferencia = self.transferencia_esperada - self.monto_cierre_transferencia
+        self.diferencia_mercadopago = self.mercadopago_esperado - self.monto_cierre_mercadopago
+        self.diferencia_seña = self.seña_esperada - self.monto_cierre_seña
         
         # Diferencia total
         self.diferencia_total = (
@@ -164,22 +198,30 @@ class TurnoCaja(models.Model):
             'efectivo': {
                 'esperado': float(self.efectivo_esperado),
                 'real': float(self.monto_cierre_efectivo or 0),
-                'diferencia': float(self.diferencia_efectivo)
+                'diferencia': float(self.diferencia_efectivo),
+                'ingresos': float(self.total_ingresos_efectivo),
+                'egresos': float(self.total_egresos_efectivo)
             },
             'transferencia': {
                 'esperado': float(self.transferencia_esperada),
                 'real': float(self.monto_cierre_transferencia or 0),
-                'diferencia': float(self.diferencia_transferencia)
+                'diferencia': float(self.diferencia_transferencia),
+                'ingresos': float(self.total_ingresos_transferencia),
+                'egresos': float(self.total_egresos_transferencia)
             },
             'mercadopago': {
                 'esperado': float(self.mercadopago_esperado),
                 'real': float(self.monto_cierre_mercadopago or 0),
-                'diferencia': float(self.diferencia_mercadopago)
+                'diferencia': float(self.diferencia_mercadopago),
+                'ingresos': float(self.total_ingresos_mercadopago),
+                'egresos': float(self.total_egresos_mercadopago)
             },
             'seña': {
                 'esperado': float(self.seña_esperada),
                 'real': float(self.monto_cierre_seña or 0),
-                'diferencia': float(self.diferencia_seña)
+                'diferencia': float(self.diferencia_seña),
+                'ingresos': float(self.total_ingresos_seña),
+                'egresos': float(self.total_egresos_seña)
             }
         }
 
@@ -209,7 +251,7 @@ class MovimientoCaja(models.Model):
         ('tarjeta', 'Tarjeta'),
         ('transferencia', 'Transferencia'),
         ('mercadopago', 'Mercado Pago'),
-        ('seña', 'Seña'),  # ✅ AGREGADO
+        ('seña', 'Seña'),
     ]
     
     # Relaciones
@@ -260,6 +302,7 @@ class MovimientoCaja(models.Model):
         help_text="Barbero asociado al movimiento"
     )
     
+    # Asumo que tienes un modelo 'Reserva' en la app 'reservas'
     reserva = models.ForeignKey(
         'reservas.Reserva',
         on_delete=models.SET_NULL,
@@ -317,15 +360,16 @@ class MovimientoCaja(models.Model):
         return self.monto if self.tipo == 'ingreso' else -self.monto
     
     def save(self, *args, **kwargs):
-        """Verificar si pertenece a un turno cerrado antes de guardar"""
+        """Verificar si pertenece a un turno cerrado antes de guardar (y QUITAR la llamada a calcular_totales)"""
         if self.pk and self.turno and self.turno.estado == 'cerrado':
             self.es_editable = False
         
         super().save(*args, **kwargs)
         
-        # Actualizar totales del turno si existe
-        if self.turno:
-            self.turno.calcular_totales()
+        # ❌ ELIMINADO: Ya no llamamos a self.turno.calcular_totales() aquí.
+        # Los ViewSets (perform_create/update/destroy) se encargarán de llamar
+        # a calcular_totales() ANTES de devolver la respuesta, evitando
+        # llamadas recursivas y asegurando la coherencia.
 
 
 class CierreCaja(models.Model):
@@ -448,9 +492,16 @@ class CierreCaja(models.Model):
     
     @property
     def tipo_diferencia(self):
-        """Retorna si hay sobrante o faltante"""
+        """
+        Retorna si hay sobrante o faltante.
+        Nota: Esta lógica está invertida respecto a la convención de TurnoCaja 
+        si se asume que diferencia > 0 es sobrante. 
+        Si usas la convención POSITIVO=FALTANTE (como en TurnoCaja), debes cambiar esto:
+        if self.diferencia > 0: return "faltante"
+        elif self.diferencia < 0: return "sobrante"
+        """
         if self.diferencia > 0:
-            return "sobrante"
+            return "sobrante" # Asumo que diferencia aquí es Real - Esperado (sobrante)
         elif self.diferencia < 0:
-            return "faltante"
+            return "faltante" # Asumo que diferencia aquí es Real - Esperado (faltante)
         return "exacto"

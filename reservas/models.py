@@ -238,3 +238,75 @@ class Reserva(models.Model):
             return round((pagado / Decimal(str(self.total))) * 100, 2)
         except (ValueError, TypeError, AttributeError, ZeroDivisionError):
             return 0
+        
+class ComprobanteLimite(models.Model):
+    """
+    Rastrea los intentos de envío de comprobantes por email
+    para limitar a 3 envíos por día
+    """
+    email = models.EmailField(
+        verbose_name="Email del cliente",
+        db_index=True
+    )
+    fecha = models.DateField(
+        verbose_name="Fecha del envío",
+        auto_now_add=True,
+        db_index=True
+    )
+    ip_address = models.GenericIPAddressField(
+        verbose_name="Dirección IP",
+        null=True,
+        blank=True
+    )
+    reserva = models.ForeignKey(
+        'Reserva',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='intentos_comprobante'
+    )
+    
+    class Meta:
+        verbose_name = "Límite de Comprobante"
+        verbose_name_plural = "Límites de Comprobantes"
+        ordering = ['-fecha']
+        indexes = [
+            models.Index(fields=['email', 'fecha']),
+        ]
+    
+    def __str__(self):
+        return f"{self.email} - {self.fecha}"
+    
+    @classmethod
+    def puede_enviar_comprobante(cls, email):
+        """
+        Verifica si un email puede enviar otro comprobante hoy
+        Retorna: (puede_enviar: bool, envios_hoy: int, mensaje: str)
+        """
+        from django.utils import timezone
+        hoy = timezone.localdate()
+        
+        envios_hoy = cls.objects.filter(
+            email__iexact=email,
+            fecha=hoy
+        ).count()
+        
+        puede_enviar = envios_hoy < 3
+        
+        if puede_enviar:
+            mensaje = f"Puedes enviar {3 - envios_hoy} comprobante(s) más hoy"
+        else:
+            mensaje = "Has alcanzado el límite de 3 comprobantes por día. Intenta mañana."
+        
+        return puede_enviar, envios_hoy, mensaje
+    
+    @classmethod
+    def registrar_envio(cls, email, ip_address=None, reserva=None):
+        """
+        Registra un nuevo envío de comprobante
+        """
+        return cls.objects.create(
+            email=email,
+            ip_address=ip_address,
+            reserva=reserva
+        ) 

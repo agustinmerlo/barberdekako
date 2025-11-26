@@ -1,0 +1,659 @@
+/* MovimientosCaja.css */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  background-color: #121212;
+  color: #fff;
+}
+
+.container {
+  padding: 20px;
+  min-height: 100vh;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.button-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Buttons */
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-success {
+  background: #4caf50;
+  color: white;
+}
+
+.btn-success:hover {
+  background: #45a049;
+}
+
+.btn-danger {
+  background: #f44336;
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #da190b;
+}
+
+.btn-warning {
+  background: #ffc107;
+  color: #000;
+}
+
+.btn-warning:hover {
+  background: #ffb300;
+}
+
+.btn-info {
+  background: #2196f3;
+  color: white;
+}
+
+.btn-info:hover {
+  background: #0b7dda;
+}
+
+.btn-secondary {
+  background: #666;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: #555;
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.btn-edit:hover {
+  background: rgba(33, 150, 243, 0.2);
+}
+
+.btn-delete:hover {
+  background: rgba(244, 67, 54, 0.2);
+}
+
+/* Status Card */
+.status-card {
+  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border: 2px solid;
+}
+
+.status-open {
+  border-color: #4caf50;
+}
+
+.status-closed {
+  border-color: #f44336;
+}
+
+.status-badge {
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 14px;
+  display: inline-block;
+  margin-bottom: 16px;
+}
+
+.status-badge-open {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+}
+
+.status-badge-closed {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+}
+
+.status-footer {
+  color: #aaa;
+  font-size: 14px;
+  margin-top: 16px;
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.stat-card {
+  background: #1a1a1a;
+  padding: 16px;
+  border-radius: 8px;
+  border-left: 4px solid;
+}
+
+.stat-efectivo {
+  border-left-color: #4caf50;
+}
+
+.stat-transferencia {
+  border-left-color: #2196f3;
+}
+
+.stat-seña {
+  border-left-color: #ffc107;
+}
+
+.stat-egresos-detail {
+  border-left-color: #f44336; /* Rojo para egresos */
+}
+
+.stat-label {
+  color: #aaa;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.stat-efectivo .stat-value {
+  color: #4caf50;
+}
+
+.stat-transferencia .stat-value {
+  color: #2196f3;
+}
+
+.stat-seña .stat-value {
+  color: #ffc107;
+}
+
+
+/* Totales Grid */
+.totales-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.total-card {
+  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+  padding: 24px;
+  border-radius: 12px;
+  border-left: 4px solid;
+}
+
+.total-ingresos {
+  border-left-color: #4caf50;
+}
+
+.total-egresos {
+  border-left-color: #f44336;
+}
+
+.total-saldo {
+  border-left-color: #2196f3;
+}
+
+.total-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.total-label {
+  color: #aaa;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.total-amount {
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.total-ingresos .total-amount {
+  color: #4caf50;
+}
+
+.total-egresos .total-amount {
+  color: #f44336;
+}
+
+/* Movimientos List */
+.movimientos-list {
+  display: grid;
+  gap: 16px;
+}
+
+.movimiento-card {
+  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+  padding: 20px;
+  border-radius: 12px;
+  border-left: 4px solid;
+  transition: all 0.3s ease;
+}
+
+.movimiento-card:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.movimiento-ingreso {
+  border-left-color: #4caf50;
+}
+
+.movimiento-egreso {
+  border-left-color: #f44336;
+}
+
+.movimiento-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.movimiento-tipo {
+  font-size: 14px;
+  font-weight: 700;
+  color: #aaa;
+}
+
+.movimiento-monto {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.movimiento-descripcion {
+  color: #fff;
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+.movimiento-detalles {
+  display: flex;
+  justify-content: space-between;
+  color: #888;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.movimiento-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* Loading & Empty State */
+.loading,
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #888;
+  font-size: 18px;
+  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+  border-radius: 12px;
+  border: 2px dashed #444;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: #1e1e1e;
+  padding: 32px;
+  border-radius: 16px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  border: 1px solid #333;
+}
+
+.modal-large {
+  max-width: 700px;
+}
+
+.modal-content h3 {
+  margin-bottom: 24px;
+  font-size: 24px;
+  color: #fff;
+}
+
+/* Estilos específicos para el modal de Cierre de Caja (Simplificado) */
+.modal-cierre-content {
+  background: #202020; 
+  padding: 24px; 
+  border: 1px solid #333;
+}
+
+.modal-cierre-content h3 {
+  display: flex;
+  align-items: center;
+  color: #e0e0e0;
+  margin-bottom: 20px;
+  font-weight: 600;
+  font-size: 22px;
+}
+
+.cierre-section {
+  margin-bottom: 20px;
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.cierre-section h4 {
+  font-size: 16px;
+  color: #aaa;
+  margin-bottom: 15px;
+  padding-bottom: 5px;
+  border-bottom: 1px dashed #444;
+}
+
+.egresos-detail {
+  background: #2a2a2a;
+  border: 1px solid #333;
+}
+
+/* Contenedor de Inputs para mostrar label e input juntos */
+.input-group-display {
+  margin-bottom: 15px;
+  display: block;
+}
+
+.input-group-display label {
+  color: #ccc;
+  font-weight: 400;
+  font-size: 15px;
+  margin-bottom: 4px;
+  margin-top: 0;
+  display: block;
+}
+
+/* Estilos para los montos ESPERADOS (No Editables) */
+.expected-amounts {
+  background: #2a2a2a;
+  border: 1px solid #333;
+}
+
+.input-expected {
+  width: 100%;
+  padding: 12px;
+  background: #333 !important; 
+  color: #fff !important;
+  font-weight: 700;
+  border: 1px solid #444;
+  border-radius: 8px;
+  cursor: default;
+  font-size: 16px;
+}
+
+/* Separador */
+.cierre-separator {
+  border: 0;
+  border-top: 1px solid #444;
+  margin: 20px 0;
+}
+
+
+.modal-content label {
+  display: block;
+  margin-top: 16px;
+  margin-bottom: 8px;
+  color: #aaa;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.input-field,
+.textarea-field {
+  width: 100%;
+  padding: 12px;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+
+.input-field:focus:not([readonly]),
+.textarea-field:focus {
+  outline: none;
+  border-color: #2196f3;
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+.textarea-field {
+  min-height: 100px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+  justify-content: flex-end; 
+}
+
+.modal-buttons .btn {
+  flex: 0 1 120px; 
+  min-width: 100px;
+}
+
+/* Historial */
+.historial-list {
+  display: grid;
+  gap: 16px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.historial-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.historial-list::-webkit-scrollbar-track {
+  background: #1a1a1a;
+  border-radius: 4px;
+}
+
+.historial-list::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 4px;
+}
+
+.historial-list::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.historial-item {
+  background: #2a2a2a;
+  padding: 16px;
+  border-radius: 8px;
+  border-left: 4px solid #2196f3;
+  transition: all 0.3s ease;
+}
+
+.historial-item:hover {
+  background: #333;
+  transform: translateX(4px);
+}
+
+.historial-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  color: #fff;
+}
+
+.historial-body p {
+  color: #aaa;
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+/* Scrollbar personalizado */
+.modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: #1a1a1a;
+  border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .container {
+    padding: 12px;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .header h2 {
+    font-size: 24px;
+  }
+
+  .button-group {
+    width: 100%;
+  }
+
+  .button-group .btn {
+    flex: 1;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .totales-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .movimiento-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .movimiento-monto {
+    font-size: 20px;
+  }
+
+  .modal-content {
+    padding: 20px;
+  }
+
+  .modal-buttons {
+    flex-direction: column;
+  }
+
+  .modal-buttons .btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .header h2 {
+    font-size: 20px;
+  }
+
+  .btn {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+
+  .stat-value,
+  .total-amount {
+    font-size: 20px;
+  }
+
+  .movimiento-monto {
+    font-size: 18px;
+  }
+}

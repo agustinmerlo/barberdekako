@@ -429,11 +429,33 @@ const ServiciosVendidosChart = () => {
   );
 };
 
+// ======================= MODAL DE CONFIRMACIÓN =======================
+const LogoutConfirmModal = ({ onConfirm, onCancel }) => (
+  <div className="modal-overlay" onClick={onCancel}>
+    <div className="modal-confirm" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-confirm-icon-warning">
+        <span className="warning-icon">!</span>
+      </div>
+      <h3 className="modal-confirm-title">Aviso</h3>
+      <p className="modal-confirm-message">¿Deseas cerrar sesión?</p>
+      <div className="modal-confirm-actions">
+        <button className="btn-cancel" onClick={onCancel}>
+          Cancelar
+        </button>
+        <button className="btn-confirm-logout" onClick={onConfirm}>
+          Confirmar
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 // ======================= HOME PRINCIPAL =======================
 const Home = () => {
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState("Inicio");
   const [role, setRole] = useState(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     const storedRole = localStorage.getItem("userRole");
@@ -531,10 +553,19 @@ const Home = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const handleLogoutConfirm = () => {
+    setShowLogoutConfirm(false);
     localStorage.removeItem("authToken");
     localStorage.removeItem("userRole");
     navigate("/");
+  };
+
+  const handleLogoutCancel = () => {
+    setShowLogoutConfirm(false);
   };
 
   const handleSectionClick = (section) => {
@@ -637,7 +668,7 @@ const Home = () => {
             </button>
           ))}
         </nav>
-        <button className="logout" onClick={handleLogout}>
+        <button className="logout" onClick={handleLogoutClick}>
           Cerrar sesión
         </button>
       </aside>
@@ -663,7 +694,7 @@ const Home = () => {
           <div className="stats-grid">
             <Perfil
               admin={{ name: "Administrador", email: "admin@barberia.com" }}
-              onLogout={handleLogout}
+              onLogout={handleLogoutConfirm}
               asCard
             />
           </div>
@@ -756,6 +787,13 @@ const Home = () => {
           </>
         )}
       </main>
+
+      {showLogoutConfirm && (
+        <LogoutConfirmModal
+          onConfirm={handleLogoutConfirm}
+          onCancel={handleLogoutCancel}
+        />
+      )}
     </div>
   );
 };

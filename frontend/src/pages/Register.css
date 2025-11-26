@@ -171,3 +171,7 @@
     font-size: 0.9em;
     margin-top: 5px;
 }
+.input-group {
+    position: relative;
+    /* ... resto de tus estilos ... */
+}

@@ -97,6 +97,7 @@ export default function PagoTransferencia() {
     setPrevisualizacion(null);
   };
 
+  // ===== 🔒 FUNCIÓN CON VALIDACIÓN DE LÍMITE =====
   const handleEnviarComprobante = async (e) => {
     e.preventDefault();
 
@@ -108,6 +109,12 @@ export default function PagoTransferencia() {
 
     if (!reserva || !clienteData) {
       alert('❌ Faltan datos de la reserva. Por favor vuelve a empezar.');
+      return;
+    }
+
+    // Validar email del cliente
+    if (!clienteData.email || !clienteData.email.trim()) {
+      alert('❌ Email del cliente es requerido.');
       return;
     }
 
@@ -171,8 +178,15 @@ export default function PagoTransferencia() {
       if (response.ok) {
         console.log('✅ Respuesta exitosa:', data);
         
+        // Mostrar info del límite si está disponible
+        if (data.limite_info) {
+          console.log(`📊 Límite de envíos: ${data.limite_info.envios_hoy}/${data.limite_info.limite_diario}`);
+        }
+        
         // Guardar ID de reserva para seguimiento
-        localStorage.setItem('reservaId', data.id);
+        if (data.id) {
+          localStorage.setItem('reservaId', data.id);
+        }
         
         // Mostrar modal de confirmación
         setMostrarConfirmacion(true);
@@ -185,9 +199,27 @@ export default function PagoTransferencia() {
         }, 3000);
         
       } else {
-        // Mostrar el error exacto del backend
+        // Manejo de errores del backend
         console.error('❌ Error del servidor:', data);
-        throw new Error(data.error || 'Error al enviar el comprobante');
+        
+        // 🚫 LÍMITE ALCANZADO (HTTP 429)
+        if (response.status === 429 && data.codigo === 'LIMITE_DIARIO_ALCANZADO') {
+          alert(
+            `🚫 LÍMITE ALCANZADO\n\n` +
+            `${data.mensaje}\n\n` +
+            `📊 Has enviado ${data.envios_hoy}/${data.limite_diario} comprobantes hoy.\n\n` +
+            `⏰ Podrás volver a intentar mañana a las 00:00hs.\n\n` +
+            `💡 Si necesitas asistencia urgente, contáctanos por WhatsApp o teléfono.`
+          );
+          setEnviando(false);
+          return;
+        }
+        
+        // Otros errores
+        const mensajeError = data.mensaje || data.error || 'Error al enviar el comprobante';
+        alert(`❌ ${mensajeError}`);
+        
+        throw new Error(mensajeError);
       }
     } catch (error) {
       console.error('❌ Error completo:', error);
@@ -408,6 +440,7 @@ export default function PagoTransferencia() {
                   <li>Debe mostrar claramente el monto transferido</li>
                   <li>Tu reserva se confirmará en las próximas horas</li>
                   <li>Recibirás un email de confirmación</li>
+                  <li>🔒 Límite: 3 comprobantes por día por email</li>
                 </ul>
               </div>
 

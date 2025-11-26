@@ -1,17 +1,39 @@
-// src/pages/PanelCliente.jsx
+// src/pages/PanelCliente.jsx - VERSIÓN CON NOTIFICACIONES Y MODAL DE LOGOUT
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import BannerNotificacion from "../components/BannerNotificacion";
 import "./PanelCliente.css";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:8000";
 
 // 📞 CONFIGURACIÓN DE CONTACTO
 const CONTACTO_BARBERIA = {
-  telefono: "+5493874000000", // ← CAMBIAR POR TU NÚMERO REAL (con código de país)
-  whatsapp: "5493874000000",  // ← CAMBIAR (sin + ni espacios)
+  telefono: "+5493874000000",
+  whatsapp: "5493874000000",
   mensajeDefault: "Hola, necesito ayuda con mi reserva en Barbería Clase V"
 };
+
+// ======================= MODAL DE CONFIRMACIÓN =======================
+const LogoutConfirmModal = ({ onConfirm, onCancel }) => (
+  <div className="modal-overlay" onClick={onCancel}>
+    <div className="modal-confirm" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-confirm-icon-warning">
+        <span className="warning-icon">!</span>
+      </div>
+      <h3 className="modal-confirm-title">Aviso</h3>
+      <p className="modal-confirm-message">¿Deseas cerrar sesión?</p>
+      <div className="modal-confirm-actions">
+        <button className="btn-cancel-modal" onClick={onCancel}>
+          Cancelar
+        </button>
+        <button className="btn-confirm-logout-modal" onClick={onConfirm}>
+          Confirmar
+        </button>
+      </div>
+    </div>
+  </div>
+);
 
 function PanelCliente() {
   const navigate = useNavigate();
@@ -21,6 +43,13 @@ function PanelCliente() {
   const [filtroReservas, setFiltroReservas] = useState("proximas");
   const [reservas, setReservas] = useState([]);
   const [cargando, setCargando] = useState(true);
+
+  // ✅ NUEVO: Estado para el modal de confirmación
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  // Estado para turnos afectados
+  const [turnosAfectados, setTurnosAfectados] = useState([]);
+  const [cargandoAfectados, setCargandoAfectados] = useState(false);
 
   const [contadores, setContadores] = useState({
     proximas: 0,
@@ -51,16 +80,54 @@ function PanelCliente() {
     return res.json();
   };
 
+  const apiPost = async (path, body = {}) => {
+    const headers = {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    };
+    const token = getToken();
+    if (token) headers.Authorization = `Token ${token}`;
+    
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body)
+    });
+    
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.mensaje || data.error || `Error ${res.status}`);
+    }
+    return res.json();
+  };
+
   // Redirige si no hay sesión
   useEffect(() => {
     if (!user || !user.email) navigate("/login");
   }, [user, navigate]);
 
-  // Carga contadores + lista inicial (proximas)
+  // Cargar turnos afectados
+  const cargarTurnosAfectados = async (email) => {
+    setCargandoAfectados(true);
+    try {
+      const data = await apiGet("/api/reservas/turnos-afectados/", { email });
+      const afectados = data?.turnos_afectados || [];
+      setTurnosAfectados(afectados);
+      console.log(`🔔 ${afectados.length} turnos afectados detectados`);
+    } catch (e) {
+      console.error("❌ Error cargando turnos afectados:", e);
+      setTurnosAfectados([]);
+    } finally {
+      setCargandoAfectados(false);
+    }
+  };
+
+  // Carga contadores + lista inicial + turnos afectados
   useEffect(() => {
     if (user?.email) {
       cargarContadores(user.email);
       cargarLista(filtroReservas, user.email);
+      cargarTurnosAfectados(user.email);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -142,6 +209,66 @@ function PanelCliente() {
   const normalizaResultados = (data) =>
     Array.isArray(data) ? data : data?.results ?? [];
 
+  // Verificar si una reserva está afectada
+  const estaAfectada = (reservaId) => {
+    return turnosAfectados.some(t => t.reserva_id === reservaId);
+  };
+
+  // Obtener info del turno afectado
+  const getInfoAfectado = (reservaId) => {
+    return turnosAfectados.find(t => t.reserva_id === reservaId);
+  };
+
+  // Solicitar reprogramación
+  const handleSolicitarReprogramacion = async (reservaId) => {
+    if (!window.confirm("¿Deseas solicitar la reprogramación de este turno?\n\nSerás contactado para coordinar una nueva fecha.")) {
+      return;
+    }
+
+    try {
+      const response = await apiPost(
+        `/api/reservas/${reservaId}/solicitar-reprogramacion/`,
+        { email_cliente: user.email }
+      );
+
+      alert(response.mensaje || "Solicitud enviada exitosamente");
+      
+      // Recargar datos
+      if (user?.email) {
+        cargarContadores(user.email);
+        cargarLista(filtroReservas, user.email);
+        cargarTurnosAfectados(user.email);
+      }
+    } catch (error) {
+      alert(`Error: ${error.message}`);
+    }
+  };
+
+  // Cancelar por indisponibilidad
+  const handleCancelarPorIndisponibilidad = async (reservaId) => {
+    if (!window.confirm("¿Deseas cancelar este turno?\n\nLa seña permanecerá registrada para un posible reembolso o futura reserva.")) {
+      return;
+    }
+
+    try {
+      const response = await apiPost(
+        `/api/reservas/${reservaId}/cancelar-por-indisponibilidad/`,
+        { email_cliente: user.email }
+      );
+
+      alert(response.mensaje || "Turno cancelado exitosamente");
+      
+      // Recargar datos
+      if (user?.email) {
+        cargarContadores(user.email);
+        cargarLista(filtroReservas, user.email);
+        cargarTurnosAfectados(user.email);
+      }
+    } catch (error) {
+      alert(`Error: ${error.message}`);
+    }
+  };
+
   // ====== formateadores ======
   const formatearFecha = (fecha) => {
     if (!fecha) return "-";
@@ -204,12 +331,25 @@ function PanelCliente() {
     completadas: contadores.completadas,
   };
 
-  // ====== HANDLERS ======
+  // ====== HANDLERS DE NAVEGACIÓN Y LOGOUT ======
   const handleVolverInicio = () => navigate("/cliente");
   const handleNuevaReserva = () => navigate("/reservar");
+
+  // Modificado: Ahora abre el modal en lugar de logout directo
   const handleCerrarSesion = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  // Nuevo: Ejecuta el logout real tras confirmar
+  const handleLogoutConfirm = () => {
+    setShowLogoutConfirm(false);
     logout();
     navigate("/login");
+  };
+
+  // Nuevo: Cierra el modal sin hacer nada
+  const handleLogoutCancel = () => {
+    setShowLogoutConfirm(false);
   };
 
   // 📞 CONTACTAR POR WHATSAPP
@@ -227,6 +367,9 @@ function PanelCliente() {
 
   return (
     <div className="panel-cliente">
+      {/* ✅ BANNER DE NOTIFICACIÓN GLOBAL */}
+      <BannerNotificacion userEmail={user.email} />
+
       {/* SIDEBAR */}
       <aside className="sidebar-cliente">
         <div className="sidebar-header">
@@ -330,6 +473,7 @@ function PanelCliente() {
                   if (user?.email) {
                     cargarContadores(user.email);
                     cargarLista(filtroReservas, user.email);
+                    cargarTurnosAfectados(user.email);
                   }
                 }}
                 title="Recargar"
@@ -361,8 +505,47 @@ function PanelCliente() {
               <div className="reservas-lista">
                 {reservasOrdenadas.map((reserva) => {
                   const badge = obtenerEstadoBadge(reserva);
+                  const afectada = estaAfectada(reserva.id);
+                  const infoAfectado = afectada ? getInfoAfectado(reserva.id) : null;
+
                   return (
-                    <div key={reserva.id} className={`reserva-card ${badge.clase}`}>
+                    <div key={reserva.id} className={`reserva-card ${badge.clase} ${afectada ? 'afectada' : ''}`}>
+                      
+                      {/* ✅ ALERTA DE TURNO AFECTADO */}
+                      {afectada && infoAfectado && (
+                        <div className="alerta-turno-afectado">
+                          <div className="alerta-header">
+                            <span className="alerta-icon">🔔</span>
+                            <h4 className="alerta-titulo">¡AVISO IMPORTANTE!</h4>
+                          </div>
+                          <p className="alerta-mensaje">
+                            Tu barbero <strong>{infoAfectado.barbero_nombre}</strong> no podrá atenderte en esta fecha.
+                          </p>
+                          {infoAfectado.motivo && (
+                            <p className="alerta-motivo">
+                              <strong>Motivo:</strong> {infoAfectado.motivo}
+                            </p>
+                          )}
+                          <p className="alerta-accion-texto">
+                            Por favor, elegí una nueva fecha y hora:
+                          </p>
+                          <div className="alerta-acciones">
+                            <button 
+                              className="btn-reprogramar"
+                              onClick={() => handleSolicitarReprogramacion(reserva.id)}
+                            >
+                              📅 Reprogramar turno
+                            </button>
+                            <button 
+                              className="btn-cancelar-afectado"
+                              onClick={() => handleCancelarPorIndisponibilidad(reserva.id)}
+                            >
+                              🚫 Cancelar turno
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="reserva-card-header">
                         <div>
                           <h3>Reserva #{reserva.id}</h3>
@@ -439,7 +622,7 @@ function PanelCliente() {
                             ? new Date(reserva.fecha_creacion).toLocaleDateString("es-ES")
                             : "-"}
                         </small>
-                        {reserva.estado === "pendiente" && (
+                        {reserva.estado === "pendiente" && !afectada && (
                           <span className="ayuda-texto">
                             💡 Tu reserva será confirmada en 24hs
                           </span>
@@ -541,6 +724,14 @@ function PanelCliente() {
           </div>
         )}
       </main>
+
+      {/* ✅ MODAL DE CONFIRMACIÓN */}
+      {showLogoutConfirm && (
+        <LogoutConfirmModal
+          onConfirm={handleLogoutConfirm}
+          onCancel={handleLogoutCancel}
+        />
+      )}
     </div>
   );
 }
