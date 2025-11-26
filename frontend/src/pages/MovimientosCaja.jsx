@@ -16,6 +16,10 @@ const MovimientosCaja = () => {
   const [modalCierre, setModalCierre] = useState(false);
   const [modalHistorial, setModalHistorial] = useState(false);
   const [montoApertura, setMontoApertura] = useState("");
+  const [modalResumenCierre, setModalResumenCierre] = useState(false);
+  const [datosCierreCaja, setDatosCierreCaja] = useState(null);
+  const [modalResumenApertura, setModalResumenApertura] = useState(false);  // ← AGREGAR ESTA
+  const [datosAperturaCaja, setDatosAperturaCaja] = useState(null);
 
   // Estado para los MONTOS ESPERADOS / CALCULADOS y EGRESOS REALES (para el Modal de Cierre)
   const [montosEsperados, setMontosEsperados] = useState({
@@ -136,7 +140,10 @@ const MovimientosCaja = () => {
       setModalApertura(false);
       setMontoApertura("");
 
-      alert("✅ Caja abierta exitosamente");
+      // Guardar datos de apertura para mostrar en modal
+      setDatosAperturaCaja(data);
+      setModalResumenApertura(true);
+
       cargarMovimientos();
       verificarTurnoActivo();
     } catch (err) {
@@ -267,36 +274,17 @@ const MovimientosCaja = () => {
       setModalCierre(false);
       setObservacionesCierre("");
 
-      const mensaje = `✅ Caja cerrada exitosamente
+      // Guardar datos del cierre para mostrar en modal
+      setDatosCierreCaja(turnoCerrado);
+      setModalResumenCierre(true);
 
-💵 EFECTIVO
-Esperado: $${formatCurrency(turnoCerrado.efectivo_esperado)}
-Contado: $${formatCurrency(turnoCerrado.monto_cierre_efectivo)}
-Diferencia: $${formatCurrency(Math.abs(turnoCerrado.diferencia_efectivo))} ${turnoCerrado.diferencia_efectivo <= 0 ? '✅' : '⚠️'}
-Egresos: $${formatCurrency(turnoCerrado.total_egresos_efectivo || 0)}
-
-🏦 TRANSFERENCIA
-Esperado: $${formatCurrency(turnoCerrado.transferencia_esperada)}
-Contado: $${formatCurrency(turnoCerrado.monto_cierre_transferencia)}
-Diferencia: $${formatCurrency(Math.abs(turnoCerrado.diferencia_transferencia))} ${turnoCerrado.diferencia_transferencia <= 0 ? '✅' : '⚠️'}
-Egresos: $${formatCurrency(turnoCerrado.total_egresos_transferencia || 0)}
-
-💰 SEÑAS
-Esperado: $${formatCurrency(turnoCerrado.seña_esperada)}
-Contado: $${formatCurrency(turnoCerrado.monto_cierre_seña)}
-Diferencia: $${formatCurrency(Math.abs(turnoCerrado.diferencia_seña))} ${turnoCerrado.diferencia_seña <= 0 ? '✅' : '⚠️'}
-Egresos: $${formatCurrency(turnoCerrado.total_egresos_seña || 0)}
-
-🎯 DIFERENCIA TOTAL: $${formatCurrency(Math.abs(turnoCerrado.diferencia_total))} ${turnoCerrado.diferencia_total <= 0 ? '(Sobrante)' : '(Faltante)'}`;
-
-      alert(mensaje);
       await cargarMovimientos();
       await verificarTurnoActivo();
     } catch (err) {
       console.error("Error cerrando caja:", err);
       alert("❌ Error al cerrar la caja: " + err.message);
     }
-  };
+  }; 
 
   const cargarHistorial = async () => {
     try {
@@ -471,79 +459,87 @@ Egresos: $${formatCurrency(turnoCerrado.total_egresos_seña || 0)}
   const saldoCaja = totalIngresos - totalEgresos;
 
   return (
-    <div className="container">
-      <div className="header">
-        <h2>💰 Movimientos de Caja</h2>
-        <div className="button-group">
-          {!turnoActivo ? (
-            <button className="btn btn-success" onClick={() => setModalApertura(true)}>
-              🔓 Abrir Caja
-            </button>
-          ) : (
-            <>
-              <button className="btn btn-danger" onClick={prepararCierreCaja}>
-                🔒 Cerrar Caja
-              </button>
-              <button className="btn btn-warning" onClick={abrirModalNuevo}>
-                ➕ Nuevo Movimiento
-              </button>
-            </>
-          )}
-          <button className="btn btn-info" onClick={cargarHistorial}>
-            📋 Historial
-          </button>
+   <div className="container">
+    <div className="header">
+  <div className="header-left">
+    <h2>💰 Movimientos de Caja</h2>
+    {turnoActivo ? (
+      <div className="status-badge-inline status-badge-open">
+        🟢 Caja Abierta
+      </div>
+    ) : (
+      <div className="status-badge-inline status-badge-closed">
+        🔴 Caja Cerrada
+      </div>
+    )}
+  </div>
+  <div className="button-group">
+    {!turnoActivo ? (
+      <>
+        <button className="btn btn-success" onClick={() => setModalApertura(true)}>
+          🔓 Abrir Caja
+        </button>
+        <button className="btn btn-info" onClick={cargarHistorial}>
+          📋 Historial
+        </button>
+      </>
+    ) : (
+      <>
+        <button className="btn btn-warning" onClick={abrirModalNuevo}>
+          ➕ Nuevo Movimiento
+        </button>
+        <button className="btn btn-info" onClick={cargarHistorial}>
+          📋 Historial
+        </button>
+        <button className="btn btn-danger" onClick={prepararCierreCaja}>
+          🔒 Cerrar Caja
+        </button>
+      </>
+    )}
+  </div>
+</div>
+      {turnoActivo && (
+  <div className="status-card status-open">
+    
+
+    <div className="stats-grid">
+      <div className="stat-card stat-efectivo">
+        <div className="stat-label">💵 Efectivo </div>
+        <div className="stat-value">
+          ${formatCurrency(turnoActivo.efectivo_esperado)}
         </div>
       </div>
 
-      {turnoActivo ? (
-        <div className="status-card status-open">
-          <div className="status-badge status-badge-open">🟢 Caja Abierta</div>
-
-          <div className="stats-grid">
-            <div className="stat-card stat-efectivo">
-              <div className="stat-label">💵 Efectivo </div>
-              <div className="stat-value">
-                ${formatCurrency(turnoActivo.efectivo_esperado)}
-              </div>
-            </div>
-
-            <div className="stat-card stat-transferencia">
-              <div className="stat-label">🏦 Transferencias </div>
-              <div className="stat-value">
-                ${formatCurrency(turnoActivo.transferencia_esperada)}
-              </div>
-            </div>
-
-            <div className="stat-card stat-seña">
-              <div className="stat-label">💰 Señas </div>
-              <div className="stat-value">
-                ${formatCurrency(turnoActivo.seña_esperada)}
-              </div>
-            </div>
-
-             <div className="stat-card stat-egresos-detail">
-              <div className="stat-label">📉 Total Egresos (Acumulado)</div>
-              <div className="stat-value" style={{ color: '#f44336' }}>
-                {/* CAMBIO: Usamos los totales calculados por el backend en turnoActivo.
-                  Asumimos que el backend está enviando los totales correctos para el turno activo.
-                  Si no tienes un total consolidado en el backend, puedes usar 'totalEgresos', 
-                  pero lo más preciso es el valor del objeto TurnoCaja.
-                */}
-                -${formatCurrency(turnoActivo.total_egresos || 0)}
-              </div>
-            </div>
-          </div>
-
-          <div className="status-footer">
-            Abierta el: {formatearFechaHora(turnoActivo.fecha_apertura)} | Monto inicial: ${formatCurrency(turnoActivo.monto_apertura)}
-          </div>
+      <div className="stat-card stat-transferencia">
+        <div className="stat-label">🏦 Transferencias </div>
+        <div className="stat-value">
+          ${formatCurrency(turnoActivo.transferencia_esperada)}
         </div>
-      ) : (
-        <div className="status-card status-closed">
-          <div className="status-badge status-badge-closed">🔴 Caja Cerrada</div>
-          <div className="status-footer">Debes abrir la caja para comenzar a operar</div>
+      </div>
+
+      <div className="stat-card stat-seña">
+        <div className="stat-label">💰 Señas </div>
+        <div className="stat-value">
+          ${formatCurrency(turnoActivo.seña_esperada)}
         </div>
-      )}
+      </div>
+
+      <div className="stat-card stat-egresos-detail">
+        <div className="stat-label">📉 Total Egresos (Acumulado)</div>
+        <div className="stat-value" style={{ color: '#f44336' }}>
+          -${formatCurrency(turnoActivo.total_egresos || 0)}
+        </div>
+      </div>
+    </div>
+
+    <div className="status-footer">
+      Abierta el: {formatearFechaHora(turnoActivo.fecha_apertura)} | Monto inicial: ${formatCurrency(turnoActivo.monto_apertura)}
+    </div>
+  </div> 
+  
+
+      )}  
+
 
       <div className="totales-grid">
         <div className="total-card total-ingresos">
@@ -903,6 +899,167 @@ Egresos: $${formatCurrency(turnoCerrado.total_egresos_seña || 0)}
           </div>
         </div>
       )}
+      {/* Modal Resumen de Apertura */}
+{modalResumenApertura && datosAperturaCaja && (
+  <div className="modal-overlay">
+    <div className="modal-content modal-resumen-apertura">
+      <button 
+        className="banner-cerrar" 
+        onClick={() => setModalResumenApertura(false)}
+        aria-label="Cerrar"
+      >
+        ×
+      </button>
+      
+      <div className="banner-icon">🔓</div>
+      
+      <h3 className="banner-titulo">¡Caja abierta exitosamente!</h3>
+      
+      <div className="resumen-apertura-contenido">
+        <div className="info-apertura">
+          <div className="detalle-linea">
+            <span>📅 Fecha de apertura:</span>
+            <span>{formatearFechaHora(datosAperturaCaja.fecha_apertura)}</span>
+          </div>
+          <div className="detalle-linea destacado">
+            <span>💵 Monto inicial:</span>
+            <span className="text-success">${formatCurrency(datosAperturaCaja.monto_apertura)}</span>
+          </div>
+          <div className="detalle-linea">
+            <span>🆔 Turno #:</span>
+            <span>{datosAperturaCaja.id}</span>
+          </div>
+        </div>
+        
+        <div className="mensaje-apertura">
+          <p>✅ La caja está lista para operar</p>
+          <p>Puedes comenzar a registrar movimientos</p>
+        </div>
+      </div>
+
+      <div className="modal-buttons">
+        <button 
+          className="btn btn-success" 
+          onClick={() => setModalResumenApertura(false)}
+        >
+          Aceptar
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+          {/* Modal Resumen de Cierre */}
+{modalResumenCierre && datosCierreCaja && (
+  <div className="modal-overlay">
+    <div className="modal-content modal-resumen-cierre">
+      <button 
+        className="banner-cerrar" 
+        onClick={() => setModalResumenCierre(false)}
+        aria-label="Cerrar"
+      >
+        ×
+      </button>
+      
+      <div className="banner-icon">✅</div>
+      
+      <h3 className="banner-titulo">¡Caja cerrada exitosamente!</h3>
+      
+      <div className="resumen-cierre-contenido">
+        {/* EFECTIVO */}
+        <div className="metodo-pago-resumen">
+          <h4>💵 EFECTIVO</h4>
+          <div className="detalle-linea">
+            <span>Esperado:</span>
+            <span>${formatCurrency(datosCierreCaja.efectivo_esperado)}</span>
+          </div>
+          <div className="detalle-linea">
+            <span>Contado:</span>
+            <span>${formatCurrency(datosCierreCaja.monto_cierre_efectivo)}</span>
+          </div>
+          <div className="detalle-linea">
+            <span>Egresos:</span>
+            <span className="text-danger">-${formatCurrency(datosCierreCaja.total_egresos_efectivo || 0)}</span>
+          </div>
+          <div className="detalle-linea destacado">
+            <span>Diferencia:</span>
+            <span className={datosCierreCaja.diferencia_efectivo <= 0 ? 'text-success' : 'text-warning'}>
+              ${formatCurrency(Math.abs(datosCierreCaja.diferencia_efectivo))} 
+              {datosCierreCaja.diferencia_efectivo <= 0 ? ' ✅' : ' ⚠️'}
+            </span>
+          </div>
+        </div>
+
+        {/* TRANSFERENCIA */}
+        <div className="metodo-pago-resumen">
+          <h4>🏦 TRANSFERENCIA</h4>
+          <div className="detalle-linea">
+            <span>Esperado:</span>
+            <span>${formatCurrency(datosCierreCaja.transferencia_esperada)}</span>
+          </div>
+          <div className="detalle-linea">
+            <span>Contado:</span>
+            <span>${formatCurrency(datosCierreCaja.monto_cierre_transferencia)}</span>
+          </div>
+          <div className="detalle-linea">
+            <span>Egresos:</span>
+            <span className="text-danger">-${formatCurrency(datosCierreCaja.total_egresos_transferencia || 0)}</span>
+          </div>
+          <div className="detalle-linea destacado">
+            <span>Diferencia:</span>
+            <span className={datosCierreCaja.diferencia_transferencia <= 0 ? 'text-success' : 'text-warning'}>
+              ${formatCurrency(Math.abs(datosCierreCaja.diferencia_transferencia))} 
+              {datosCierreCaja.diferencia_transferencia <= 0 ? ' ✅' : ' ⚠️'}
+            </span>
+          </div>
+        </div>
+
+        {/* SEÑAS */}
+        <div className="metodo-pago-resumen">
+          <h4>💰 SEÑAS</h4>
+          <div className="detalle-linea">
+            <span>Esperado:</span>
+            <span>${formatCurrency(datosCierreCaja.seña_esperada)}</span>
+          </div>
+          <div className="detalle-linea">
+            <span>Contado:</span>
+            <span>${formatCurrency(datosCierreCaja.monto_cierre_seña)}</span>
+          </div>
+          <div className="detalle-linea">
+            <span>Egresos:</span>
+            <span className="text-danger">-${formatCurrency(datosCierreCaja.total_egresos_seña || 0)}</span>
+          </div>
+          <div className="detalle-linea destacado">
+            <span>Diferencia:</span>
+            <span className={datosCierreCaja.diferencia_seña <= 0 ? 'text-success' : 'text-warning'}>
+              ${formatCurrency(Math.abs(datosCierreCaja.diferencia_seña))} 
+              {datosCierreCaja.diferencia_seña <= 0 ? ' ✅' : ' ⚠️'}
+            </span>
+          </div>
+        </div>
+
+        {/* DIFERENCIA TOTAL */}
+        <div className="diferencia-total-resumen">
+          <h4>🎯 DIFERENCIA TOTAL</h4>
+          <div className="total-final">
+            <span className={datosCierreCaja.diferencia_total <= 0 ? 'text-success' : 'text-danger'}>
+              ${formatCurrency(Math.abs(datosCierreCaja.diferencia_total))} 
+              {datosCierreCaja.diferencia_total <= 0 ? ' (Sobrante)' : ' (Faltante)'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="modal-buttons">
+        <button 
+          className="btn btn-success" 
+          onClick={() => setModalResumenCierre(false)}
+        >
+          Aceptar
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };

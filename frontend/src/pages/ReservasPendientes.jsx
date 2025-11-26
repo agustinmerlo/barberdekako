@@ -263,23 +263,18 @@ export default function ReservasPendientes() {
   };
 
   return (
-    <div className="reservas-admin-container">
-      <div className="reservas-admin-header">
-        <h1>📋 Gestión de Reservas</h1>
-        {/* Indicador de estado de caja */}
-        <div style={{ 
-          display: 'inline-block', 
-          marginLeft: '20px',
-          padding: '8px 16px',
-          borderRadius: '20px',
-          fontSize: '14px',
-          fontWeight: 'bold',
-          background: turnoActivo ? 'rgba(76, 175, 80, 0.2)' : 'rgba(244, 67, 54, 0.2)',
-          color: turnoActivo ? '#4caf50' : '#f44336',
-          border: `2px solid ${turnoActivo ? '#4caf50' : '#f44336'}`
-        }}>
-          {turnoActivo ? '🟢 Caja Abierta' : '🔴 Caja Cerrada'}
-        </div>
+    <div className="reservas-admin-header">
+  <div className="header-left">
+    <h1>📋 Gestión de Reservas</h1>
+    {turnoActivo ? (
+      <div className="status-badge-inline status-badge-open">
+        🟢 Caja Abierta
+      </div>
+    ) : (
+      <div className="status-badge-inline status-badge-closed">
+        🔴 Caja Cerrada
+      </div>
+    )}
       </div>
 
       {/* FILTROS */}
@@ -411,7 +406,7 @@ export default function ReservasPendientes() {
                               </span>
                               {servicio?.duracion && (
                                 <span className="servicio-duracion">
-                                  ⏱️ {servicio.duracion} min
+                                  ⏱️ {servicio.duracion} 
                                 </span>
                               )}
                             </div>

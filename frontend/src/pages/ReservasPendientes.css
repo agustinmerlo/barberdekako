@@ -607,3 +607,90 @@ body {
     grid-template-columns: 1fr;
   }
 }
+/* Header con badge inline */
+.reservas-admin-header {
+  margin-bottom: 30px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.reservas-admin-header h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-white) !important;
+}
+
+/* Badge inline (al lado del título) */
+.status-badge-inline {
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #1a1a1a;
+  border: 2px solid var(--red);
+}
+
+.status-badge-inline.status-badge-closed {
+  background: rgba(244, 67, 54, 0.15);
+  color: var(--red) !important;
+  border-color: var(--red);
+  opacity: 1 !important;
+}
+
+/* Responsive para el header */
+@media (max-width: 768px) {
+  .header-left {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .reservas-admin-header h1 {
+    font-size: 24px;
+  }
+
+  .status-badge-inline {
+    font-size: 13px;
+    padding: 6px 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .reservas-admin-header h1 {
+    font-size: 20px;
+  }
+
+  .status-badge-inline {
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+}
+/* Badge inline - Versión ABIERTA */
+.status-badge-inline.status-badge-open {
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(76, 175, 80, 0.15);
+  color: #4caf50 !important;
+  border: 2px solid #4caf50;
+  opacity: 1 !important;
+}
+/* Ocultar el badge de estado en el sidebar superior */
+.sidebar-header .status-badge,
+.sidebar .status-badge-inline,
+.sidebar-top .status-badge {
+  display: none !important;
+}

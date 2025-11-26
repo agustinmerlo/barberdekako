@@ -576,3 +576,28 @@ body {
     font-size: 1rem;
   }
 }
+/* ============================================
+   OCULTAR BADGE DE CAJA EN SIDEBAR SUPERIOR
+   ============================================ */
+
+/* Si está en el sidebar */
+.sidebar *[class*="caja"],
+.sidebar *[class*="CAJA"],
+.sidebar .status-badge,
+.sidebar .badge-status {
+  display: none !important;
+}
+
+/* Si está en algún header/navbar superior */
+nav *[class*="caja"],
+header *[class*="caja"] {
+  display: none !important;
+}
+
+/* Si usa clases de Tailwind CSS */
+.bg-green-500:not(.status-badge-inline),
+.bg-green-600:not(.status-badge-inline),
+.bg-green-700:not(.status-badge-inline) {
+  display: none !important;
+}
+

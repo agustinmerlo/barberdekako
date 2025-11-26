@@ -657,3 +657,322 @@ body {
     font-size: 18px;
   }
 }
+/* Resumen de Cierre */
+.modal-resumen-cierre {
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  background: #1e1e1e;
+}
+
+.banner-icon {
+  font-size: 3rem;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.banner-titulo {
+  text-align: center;
+  color: #fff;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
+.banner-cerrar {
+  position: absolute;
+  top: 100px;
+  right: 10px;
+  background: transparent;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  color: #aaa;
+  line-height: 1;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  z-index: 10;
+}
+
+.banner-cerrar:hover {
+  color: #fff;
+}
+
+.resumen-cierre-contenido {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+
+.metodo-pago-resumen {
+  background: #2a2a2a;
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid #4caf50;
+}
+
+.metodo-pago-resumen h4 {
+  margin: 0 0 0.75rem 0;
+  color: #fff;
+  font-size: 1.1rem;
+}
+
+.detalle-linea {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #444;
+  color: #ddd;
+}
+
+.detalle-linea:last-child {
+  border-bottom: none;
+}
+
+.detalle-linea.destacado {
+  font-weight: bold;
+  background: #333;
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+  border-radius: 4px;
+  color: #fff;
+}
+
+.diferencia-total-resumen {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.diferencia-total-resumen h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
+  color: #fff;
+}
+
+.total-final {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.text-success {
+  color: #4caf50;
+}
+
+.text-danger {
+  color: #f44336;
+}
+
+.text-warning {
+  color: #ff9800;
+}
+
+/* Responsive para modal de resumen */
+@media (max-width: 768px) {
+  .modal-resumen-cierre {
+    max-width: 95%;
+    padding: 20px;
+  }
+  
+  .banner-titulo {
+    font-size: 1.2rem;
+  }
+  
+  .banner-icon {
+    font-size: 2.5rem;
+  }
+  
+  .metodo-pago-resumen h4 {
+    font-size: 1rem;
+  }
+  
+  .total-final {
+    font-size: 1.2rem;
+  }
+}
+/* Resumen de Apertura */
+.modal-resumen-apertura {
+  max-width: 500px;
+  background: #1e1e1e;
+  position: relative;
+}
+
+.resumen-apertura-contenido {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+
+.info-apertura {
+  background: #2a2a2a;
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid #4caf50;
+}
+
+.mensaje-apertura {
+  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+  color: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.mensaje-apertura p {
+  margin: 0.5rem 0;
+  font-size: 1rem;
+}
+
+.mensaje-apertura p:first-child {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .modal-resumen-apertura {
+    max-width: 95%;
+    padding: 20px;
+  }
+}
+/* Header actualizado */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+/* Badge inline (al lado del título) */
+.status-badge-inline {
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #1a1a1a;
+  border: 2px solid #f44336;
+}
+
+.status-badge-inline.status-badge-closed {
+  background: rgba(244, 67, 54, 0.15);
+  color: #f44336;
+  border-color: #f44336;
+}
+
+/* Responsive para el nuevo header */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .header-left {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .header h2 {
+    font-size: 24px;
+  }
+
+  .status-badge-inline {
+    font-size: 13px;
+    padding: 6px 16px;
+  }
+
+  .button-group {
+    width: 100%;
+  }
+
+  .button-group .btn {
+    flex: 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .header h2 {
+    font-size: 20px;
+  }
+
+  .status-badge-inline {
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+}
+/* Ocultar badge de estado en sidebar/header superior */
+.sidebar *[class*="caja"],
+.sidebar *[class*="badge"],
+header *[class*="caja"],
+nav *[class*="caja"] {
+  display: none !important;
+}
+
+/* O más específico si tiene clases de Tailwind */
+.bg-green-500,
+.bg-green-600,
+.text-green-500 {
+  display: none !important;
+}
+/* Buttons */
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  flex: 0 0 auto; /* ← AGREGAR ESTO */
+  width: auto; /* ← AGREGAR ESTO */
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .container {
+    padding: 12px;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .header h2 {
+    font-size: 24px;
+  }
+
+  .button-group {
+    width: 100%;
+    flex-wrap: wrap; /* ← CAMBIAR ESTO */
+  }
+
+  .button-group .btn {
+    flex: 1; /* ← MANTENER ESTO SOLO EN MOBILE */
+  }
+}
